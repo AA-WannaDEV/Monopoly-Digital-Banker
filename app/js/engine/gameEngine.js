@@ -52,6 +52,7 @@ export function createInitialState() {
     players: [],
     activePlayerIndex: 0,
     turnNumber: 1,
+    turnState: { hasPassedGo: false, hasPaidTax: false, hasBoughtProperty: false, hasDrawnCard: false },
     propertyStates: createPropertyStates(),
     chanceDeck: shuffleArray(CHANCE_CARDS.filter(c => c.effectType !== 'getOutOfJailFree')),
     chanceDiscardPile: [],
@@ -372,6 +373,7 @@ export function gameReducer(state, action) {
       }
       s.activePlayerIndex = nextIdx;
       s.turnNumber++;
+      s.turnState = { hasPassedGo: false, hasPaidTax: false, hasBoughtProperty: false, hasDrawnCard: false };
       const nextPlayer = s.players[nextIdx];
       addLog('system', `── Turn ${s.turnNumber}: ${nextPlayer.name}'s turn ──`);
       return s;
@@ -388,8 +390,13 @@ export function gameReducer(state, action) {
     }
     
     case 'PLAYER_TO_BANK': {
+      if (action.reason.includes('Luxury Tax') && s.turnState?.hasPaidTax) return s;
       const p = getPlayer(action.playerId);
       if (p) {
+        if (action.reason.includes('Luxury Tax')) {
+          if (!s.turnState) s.turnState = {};
+          s.turnState.hasPaidTax = true;
+        }
         p.balance -= action.amount;
         addLog('transaction', `💸 ${p.name} paid $${action.amount.toLocaleString()} to the Bank (${action.reason})`);
         // Free parking jackpot
@@ -413,9 +420,12 @@ export function gameReducer(state, action) {
     
     // ── Property ──
     case 'BUY_PROPERTY': {
+      if (s.turnState?.hasBoughtProperty) return s;
       const p = getPlayer(action.playerId);
       const propData = PROPERTIES.find(pr => pr.id === action.propertyId);
       if (p && propData) {
+        if (!s.turnState) s.turnState = {};
+        s.turnState.hasBoughtProperty = true;
         p.balance -= propData.purchasePrice;
         p.ownedPropertyIds.push(action.propertyId);
         s.propertyStates[action.propertyId].ownerId = p.id;
@@ -528,6 +538,9 @@ export function gameReducer(state, action) {
     
     // ── Cards ──
     case 'DRAW_CARD': {
+      if (s.turnState?.hasDrawnCard) return s;
+      if (!s.turnState) s.turnState = {};
+      s.turnState.hasDrawnCard = true;
       const deckKey = action.deck === 'chance' ? 'chanceDeck' : 'communityChestDeck';
       const discardKey = action.deck === 'chance' ? 'chanceDiscardPile' : 'communityChestDiscardPile';
       
@@ -709,8 +722,11 @@ export function gameReducer(state, action) {
     
     // ── Collect salary ──
     case 'COLLECT_SALARY': {
+      if (s.turnState?.hasPassedGo) return s;
       const p = getPlayer(action.playerId);
       if (p) {
+        if (!s.turnState) s.turnState = {};
+        s.turnState.hasPassedGo = true;
         const amount = s.settings.rules.doubleSalaryOnGo && action.exactLanding ? 400 : 200;
         p.balance += amount;
         addLog('transaction', `💰 ${p.name} collected $${amount} salary for passing Go`);

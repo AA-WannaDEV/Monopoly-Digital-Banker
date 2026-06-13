@@ -334,6 +334,10 @@ function renderDashboard() {
         <div class="action-grid" id="action-grid">
           ${renderActionButtons(activePlayer)}
         </div>
+        <div class="turn-actions">
+          <button class="action-btn action-end" data-action="endTurn"><span class="action-icon">⏭️</span> End Turn</button>
+          <button class="action-btn action-bankrupt" data-action="bankruptcy"><span class="action-icon">🚪</span> Quit Game</button>
+        </div>
       </section>
 
       <!-- Active Player Info Panel -->
@@ -345,15 +349,14 @@ function renderDashboard() {
           <div class="panel-header">
             <h2 class="panel-title">📋 Property Registry</h2>
             <select id="property-filter" class="select-sm">
-              <option value="all">All Properties</option>
+              <option value="owned" selected>Owned</option>
               <option value="unowned">Unowned</option>
-              <option value="owned">Owned</option>
-              <option value="mortgaged">Mortgaged</option>
-              ${Object.entries(COLOR_GROUPS).map(([key, g]) => `<option value="${key}">${g.name}</option>`).join('')}
+              <option value="others">Owned by Others</option>
+              <option value="all">All Properties</option>
             </select>
           </div>
           <div class="property-list" id="property-list">
-            ${renderPropertyRegistry('all')}
+            ${renderPropertyRegistry('owned')}
           </div>
         </section>
 
@@ -587,8 +590,6 @@ function renderActionButtons(player) {
       <button class="action-btn action-mortgage"  data-action="mortgage">  <span class="action-icon">🏦</span> Mortgage </button>
       <button class="action-btn action-unmortgage"data-action="unmortgage"><span class="action-icon">🔓</span> Unmortgage </button>
       <button class="action-btn action-build"     data-action="sellHouse"> <span class="action-icon">🔻</span> Sell Houses </button>
-      <button class="action-btn action-end"       data-action="endTurn">   <span class="action-icon">⏭️</span> End Turn </button>
-      <button class="action-btn action-bankrupt"  data-action="bankruptcy"><span class="action-icon">💀</span> Declare Bankruptcy </button>
     `;
   }
 
@@ -611,8 +612,6 @@ function renderActionButtons(player) {
       </button>
     ` : ''}
     <button class="action-btn action-build"     data-action="sellHouse">    <span class="action-icon">🔻</span> Sell Buildings </button>
-    <button class="action-btn action-end"       data-action="endTurn">      <span class="action-icon">⏭️</span> End Turn </button>
-    <button class="action-btn action-bankrupt"  data-action="bankruptcy">   <span class="action-icon">💀</span> Declare Bankruptcy </button>
   `;
 }
 
@@ -624,10 +623,11 @@ function renderPropertyRegistry(filter) {
     group: COLOR_GROUPS[p.colorGroup],
   }));
 
+  const activePlayer = state.players[state.activePlayerIndex];
+
   if      (filter === 'unowned')   props = props.filter(p => !p.state.ownerId);
-  else if (filter === 'owned')     props = props.filter(p =>  p.state.ownerId);
-  else if (filter === 'mortgaged') props = props.filter(p =>  p.state.isMortgaged);
-  else if (filter !== 'all')       props = props.filter(p =>  p.colorGroup === filter);
+  else if (filter === 'owned')     props = props.filter(p => p.state.ownerId === activePlayer.id);
+  else if (filter === 'others')    props = props.filter(p => p.state.ownerId && p.state.ownerId !== activePlayer.id);
 
   return props.map(p => {
     const colorHex = p.group?.hex || '#999';
@@ -873,14 +873,14 @@ function handleAction(action, player) {
 // MODAL SYSTEM
 // ═══════════════════════════════════════
 
-function showModal(title, content, onClose) {
+function showModal(title, content, onClose, hideCloseButton = false) {
   const container = document.getElementById('modal-container') || document.body;
   container.innerHTML = `
     <div class="modal-overlay" id="modal-overlay">
       <div class="modal" id="modal">
         <div class="modal-header">
           <h2 class="modal-title">${title}</h2>
-          <button class="modal-close" id="modal-close-btn">✕</button>
+          ${hideCloseButton ? '' : '<button class="modal-close" id="modal-close-btn">✕</button>'}
         </div>
         <div class="modal-body">${content}</div>
       </div>
@@ -902,10 +902,12 @@ function showModal(title, content, onClose) {
     }
   };
 
-  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
-  document.getElementById('modal-overlay').addEventListener('click', e => {
-    if (e.target.id === 'modal-overlay') closeModal();
-  });
+  if (!hideCloseButton) {
+    document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+    document.getElementById('modal-overlay').addEventListener('click', e => {
+      if (e.target.id === 'modal-overlay') closeModal();
+    });
+  }
 
   return closeModal;
 }
@@ -1001,7 +1003,7 @@ function showPayRentModal(player) {
                 <span class="prop-select-name">${p.name}</span>
                 <span class="prop-select-owner">Owner: ${owner?.name || 'Unknown'}</span>
               </div>
-              <span class="rent-amount">$${rent.toLocaleString()}${p.type === 'utility' ? '*' : ''}</span>
+              <span class="rent-amount" data-rent-display="${p.id}">$${rent.toLocaleString()}${p.type === 'utility' ? '*' : ''}</span>
             </button>
           `;
         }).join('')}
@@ -1011,6 +1013,20 @@ function showPayRentModal(player) {
   `;
 
   const closeModal = showModal('💸 Pay Rent', content);
+
+  const diceInput = document.getElementById('dice-total-input');
+  if (diceInput) {
+    diceInput.addEventListener('input', (e) => {
+      const dice = parseInt(e.target.value) || 7;
+      ownedByOthers.forEach(p => {
+        if (p.type === 'utility') {
+          const newRent = calculateRent(p.id, state.propertyStates, dice, null);
+          const rentSpan = document.querySelector(`span[data-rent-display="${p.id}"]`);
+          if (rentSpan) rentSpan.textContent = '$' + newRent.toLocaleString() + '*';
+        }
+      });
+    });
+  }
 
   document.querySelectorAll('.property-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1072,7 +1088,7 @@ function drawCard(deck, player) {
     </div>
   `;
 
-  const closeModal = showModal(`${bgEmoji} ${deckLabel}`, content);
+  const closeModal = showModal(`${bgEmoji} ${deckLabel}`, content, null, true);
 
   const modalBody = document.querySelector('.modal-body');
   if (modalBody) {
@@ -1412,7 +1428,7 @@ function showBankruptcyModal(player) {
     <div class="bankruptcy-modal">
       <div class="bankruptcy-warning">
         <span class="warning-icon">⚠️</span>
-        <h3>Declare Bankruptcy?</h3>
+        <h3>Quit Game?</h3>
         <p>This is <strong>irreversible</strong>. ${player.name} will be eliminated.</p>
       </div>
       <p class="modal-instruction">Who is ${player.name} bankrupt to?</p>
@@ -1427,7 +1443,7 @@ function showBankruptcyModal(player) {
     </div>
   `;
 
-  const closeModal = showModal('💀 Declare Bankruptcy', content);
+  const closeModal = showModal('🚪 Quit Game', content);
 
   document.getElementById('bankrupt-to-bank').addEventListener('click', () => {
     dispatch({ type: 'DECLARE_BANKRUPTCY', playerId: player.id, creditorId: null });

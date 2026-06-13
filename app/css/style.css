@@ -646,6 +646,10 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
   transition: all var(--t-fast);
   position: relative;
   overflow: hidden;
+  color: inherit;
+}
+.action-btn * {
+  pointer-events: none;
 }
 .action-btn::after {
   content: '';
@@ -668,10 +672,24 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
 .action-rent:hover    { border-color: var(--c-primary) !important; color: var(--c-primary); }
 .action-chance:hover  { border-color: #F7941D !important; color: #F7941D; }
 .action-cc:hover      { border-color: var(--c-link) !important; color: var(--c-link); }
-.action-end           { background: var(--c-base); color: white; border-color: var(--c-base); }
-.action-end:hover:not(:disabled) { background: #2c3e50; }
-.action-bankrupt      { border-color: rgba(229,57,53,0.3); }
-.action-bankrupt:hover { border-color: var(--c-primary) !important; color: var(--c-primary); }
+.action-end           { background: var(--c-base); color: white; border-color: var(--c-base); font-size: 16px; padding: 12px; flex-direction: row; justify-content: center; gap: 10px;}
+.action-end:hover:not(:disabled) { background: #2c3e50; border-color: #2c3e50; color: white;}
+.action-bankrupt      { border-color: rgba(229,57,53,0.3); color: var(--c-primary); flex-direction: row; justify-content: center; gap: 10px; font-size: 16px; padding: 12px;}
+.action-bankrupt:hover { background: rgba(229,57,53,0.1); border-color: var(--c-primary) !important; color: var(--c-primary); }
+
+.turn-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+[data-theme="dark"] .action-btn {
+  color: var(--c-text);
+}
+[data-theme="dark"] .action-end {
+  color: white;
+}
 
 /* ═══════════════════════════════════════
    PLAYER INFO PANEL
@@ -1077,7 +1095,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
   padding: 10px 0 20px;
 }
 .card-flip-container {
-  width: 280px; height: 400px;
+  width: 260px; height: 320px;
   position: relative;
   animation: flipIn 0.75s cubic-bezier(0.2, 0.6, 0.2, 1) both;
 }

@@ -1,0 +1,17 @@
+- The hover effect works for some and for some not, the base colour in dark mode for all actions shown on cards is in black text in dark mode and hence is hard to see.
+- The property Registry should only show 4 filters: unowned, owned, owned by others, all. Among these the owned filter should be shown by default.
+- The hover effect does not work when the cursor goes straight towards text.
+- the web app should me EXTREMELY/BEST COMPATIABLE for mobile and also for desktop mode. Hence for it to be fully compatible on mobile the turn based webpage will need a better revamp for mobile UI. This all should be done without compromising animations, effects, etc.
+- the end turn and declare bankruptcy button should be separately under all the action card buttons as they require separate representation.
+- Their should be a system to detect bankruptcy rather than a button to declare bankruptcy. The button should rather work like a quit game button if the player needs to quit the game unconditionally
+- Check the prices of every single item included in our web app like properties and luxury tax to see if they are exactly same as the ones used in the real classic Hasbro monopoly board game.
+- when paying rent for utility properties the amount should change according to the dice roll changing rather it just says $28*
+- Check property rent paying systems that if it follows all property card rules in the classic monopoly Hasbro board game.
+- An extra feature should be added for when trading it should show the net total on both sides of the added things  on both sides separate.
+- luxury tax and pass go money should only be collected once per turn.
+- the chance and community chest cards when drawn have a apply effect button and a close option, cheating can be done by players if they quickly press close "x" to change their card, this should be fixed by: A player can only draw one chance card OR one community chest card once per turn and their should not be an scroll option their rather the apply effect button should be seen before scrolling therefore eliminating the scroll at that part and the card should me made properly smaller so that the design does not look weird. This should not compromise on the card's current beautiful animation.
+- For chance and community chest cards, for the cards requiring options that if thing a has happened do this and if not then do this, I want all cards to be studied and an option button should be created if any option on that card so the user can see then click either button that has the option true. This should only be done on cards requiring the player to see options or in most cases, the player's position on the board.
+- Only one property should be able to be both per turn.
+- Trading of houses should also be able to be done
+- Before starting the game add the option to also choose whether you want a digital dice if not having a physical dice. The dice SHOULD have great and by that I mean GREAT little subtle cartoonish animation and the dice should complement the web app's colour palette.
+
