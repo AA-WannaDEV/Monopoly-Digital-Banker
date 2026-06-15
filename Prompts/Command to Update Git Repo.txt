@@ -1,0 +1,6 @@
+cd "d:\Users\Asad Ahmed\Desktop\Monopoly Digital Banker"
+git config user.name "AA-WannaDEV"
+git config user.email "asadahmedspy777@gmail.com"
+git add .
+git commit -m "(Message Here)"
+git push origin main

@@ -353,7 +353,7 @@ export function gameReducer(state, action) {
         if (s.settings.rules.freeParkingJackpot && /tax|fine|Tax|Fine/.test(action.reason)) {
           s.freeParkingPool += action.amount;
         }
-        if (/Luxury Tax/.test(action.reason)) {
+        if (/Tax/.test(action.reason)) {
           if (!s.turnState) s.turnState = {};
           s.turnState.hasPaidTax = true;
         }

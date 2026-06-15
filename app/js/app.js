@@ -62,9 +62,9 @@ const app = document.getElementById('app');
 
 function render() {
   switch (state.phase) {
-    case 'splash':   renderSplash();    break;
-    case 'setup':    renderSetup();     break;
-    case 'playing':  renderDashboard(); break;
+    case 'splash': renderSplash(); break;
+    case 'setup': renderSetup(); break;
+    case 'playing': renderDashboard(); break;
     case 'finished': renderWinScreen(); break;
   }
 }
@@ -176,7 +176,7 @@ function renderSetup() {
                 <div class="setup-player-token">${TOKENS.find(t => t.id === p.token)?.emoji || '❓'}</div>
                 <div class="setup-player-info">
                   <input type="text" class="setup-player-name" value="${p.name}"
-                    placeholder="Player ${i+1} Name" data-player-id="${p.id}" />
+                    placeholder="Player ${i + 1} Name" data-player-id="${p.id}" />
                   <select class="setup-token-select" data-player-id="${p.id}">
                     <option value="${p.token}">${TOKENS.find(t => t.id === p.token)?.name || 'Select Token'}</option>
                     ${availableTokens.map(t => `<option value="${t.id}">${t.emoji} ${t.name}</option>`).join('')}
@@ -204,10 +204,10 @@ function renderSetup() {
         <div class="setup-section">
           <h2 class="section-title">📜 House Rules</h2>
           <div class="rules-grid">
-            ${renderRuleToggle('auctionUnowned',          'Auction Unowned Properties', 'If a player declines to buy, the property goes to auction.',                              state.settings.rules.auctionUnowned)}
-            ${renderRuleToggle('freeParkingJackpot',      'Free Parking Jackpot',       'Taxes and fines go into a pool collected by landing on Free Parking.',                    state.settings.rules.freeParkingJackpot)}
-            ${renderRuleToggle('noBuildOnMortgagedGroup', 'No Build on Mortgaged Group','Cannot build houses if any property in the color group is mortgaged.',                   state.settings.rules.noBuildOnMortgagedGroup)}
-            ${renderRuleToggle('doubleSalaryOnGo',        'Double Salary on Go',        'Collect $400 instead of $200 when landing exactly on Go.',                               state.settings.rules.doubleSalaryOnGo)}
+            ${renderRuleToggle('auctionUnowned', 'Auction Unowned Properties', 'If a player declines to buy, the property goes to auction.', state.settings.rules.auctionUnowned)}
+            ${renderRuleToggle('freeParkingJackpot', 'Free Parking Jackpot', 'Taxes and fines go into a pool collected by landing on Free Parking.', state.settings.rules.freeParkingJackpot)}
+            ${renderRuleToggle('noBuildOnMortgagedGroup', 'No Build on Mortgaged Group', 'Cannot build houses if any property in the color group is mortgaged.', state.settings.rules.noBuildOnMortgagedGroup)}
+            ${renderRuleToggle('doubleSalaryOnGo', 'Double Salary on Go', 'Collect $400 instead of $200 when landing exactly on Go.', state.settings.rules.doubleSalaryOnGo)}
           </div>
         </div>
 
@@ -625,15 +625,15 @@ function renderPropertyRegistry(filter) {
 
   const activePlayer = state.players[state.activePlayerIndex];
 
-  if      (filter === 'unowned')   props = props.filter(p => !p.state.ownerId);
-  else if (filter === 'owned')     props = props.filter(p => p.state.ownerId === activePlayer.id);
-  else if (filter === 'others')    props = props.filter(p => p.state.ownerId && p.state.ownerId !== activePlayer.id);
+  if (filter === 'unowned') props = props.filter(p => !p.state.ownerId);
+  else if (filter === 'owned') props = props.filter(p => p.state.ownerId === activePlayer.id);
+  else if (filter === 'others') props = props.filter(p => p.state.ownerId && p.state.ownerId !== activePlayer.id);
 
   return props.map(p => {
     const colorHex = p.group?.hex || '#999';
     const ownerName = p.owner ? p.owner.name : 'Unowned';
     let statusBadges = '';
-    if (p.state.hasHotel)   statusBadges  = '<span class="prop-badge hotel-badge">🏨 Hotel</span>';
+    if (p.state.hasHotel) statusBadges = '<span class="prop-badge hotel-badge">🏨 Hotel</span>';
     else if (p.state.houses > 0) statusBadges = `<span class="prop-badge house-badge">🏠 ×${p.state.houses}</span>`;
     if (p.state.isMortgaged) statusBadges += '<span class="prop-badge mortgage-badge">MORTGAGED</span>';
 
@@ -754,7 +754,7 @@ function showPlayerDetailModal(player) {
     const isMonopoly = monopolyGroups.includes(g);
     const items = groupedProps[g].map(({ data: p, state: ps }) => {
       let status = '';
-      if (ps.hasHotel)    status = '🏨';
+      if (ps.hasHotel) status = '🏨';
       else if (ps.houses > 0) status = `🏠×${ps.houses}`;
       if (ps.isMortgaged) status += ' (Mortgaged)';
       return `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;border-bottom:1px dashed var(--c-border)">
@@ -807,7 +807,7 @@ function showPlayerDetailModal(player) {
         <div class="pdm-status-item">
           <span class="pdm-status-icon">${player.isInJail ? '🔒' : '✅'}</span>
           <span class="pdm-status-label">Jail Status</span>
-          <span class="pdm-status-val">${player.isInJail ? `Turn ${player.jailTurnsSpent+1}/3` : 'Free'}</span>
+          <span class="pdm-status-val">${player.isInJail ? `Turn ${player.jailTurnsSpent + 1}/3` : 'Free'}</span>
         </div>
         <div class="pdm-status-item">
           <span class="pdm-status-icon">⭐</span>
@@ -829,12 +829,12 @@ function showPlayerDetailModal(player) {
       <div class="pdm-section-title">🃏 Card Draw History</div>
       <div style="max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
         ${history.length > 0
-          ? history.map(h => `
+      ? history.map(h => `
               <div class="pip-card-entry ${h.deck}">
                 <strong>${h.timestamp}</strong> ${h.deck === 'chance' ? '❓' : '📦'} ${h.text}
               </div>
             `).join('')
-          : '<span style="font-size:13px;color:#aaa;font-style:italic">No cards drawn yet</span>'}
+      : '<span style="font-size:13px;color:#aaa;font-style:italic">No cards drawn yet</span>'}
       </div>
     </div>
   `;
@@ -847,26 +847,52 @@ function showPlayerDetailModal(player) {
 // ═══════════════════════════════════════
 
 function handleAction(action, player) {
-  switch (action) {
-    case 'buyProperty':       showBuyPropertyModal(player);   break;
-    case 'payRent':           showPayRentModal(player);        break;
-    case 'drawChance':        drawCard('chance', player);      break;
-    case 'drawCC':            drawCard('communityChest', player); break;
-    case 'build':             showBuildModal(player);          break;
-    case 'mortgage':          showMortgageModal(player);       break;
-    case 'unmortgage':        showUnmortgageModal(player);     break;
-    case 'trade':             showTradeModal(player);          break;
-    case 'goToJail':          dispatch({ type: 'SEND_TO_JAIL', playerId: player.id }); break;
-    case 'payJailFine':       dispatch({ type: 'PAY_JAIL_FINE', playerId: player.id }); break;
-    case 'useGoojf':          dispatch({ type: 'USE_GOOJF', playerId: player.id }); break;
-    case 'collectSalary':     showCollectSalaryModal(player);  break;
-    case 'collectFreeParking':dispatch({ type: 'COLLECT_FREE_PARKING', playerId: player.id }); break;
-    case 'incomeTax':         showIncomeTaxModal(player);      break;
-    case 'luxuryTax':         dispatch({ type: 'PLAYER_TO_BANK', playerId: player.id, amount: 75, reason: 'Luxury Tax' }); break;
-    case 'endTurn':           dispatch({ type: 'END_TURN' });  break;
-    case 'bankruptcy':        showBankruptcyModal(player);     break;
-    case 'sellHouse':         showSellHouseModal(player);      break;
+  const blockedMessage = getTurnBlockMessage(action);
+  if (blockedMessage) {
+    showToast(blockedMessage, 'error');
+    return;
   }
+
+  switch (action) {
+    case 'buyProperty': showBuyPropertyModal(player); break;
+    case 'payRent': showPayRentModal(player); break;
+    case 'drawChance': drawCard('chance', player); break;
+    case 'drawCC': drawCard('communityChest', player); break;
+    case 'build': showBuildModal(player); break;
+    case 'mortgage': showMortgageModal(player); break;
+    case 'unmortgage': showUnmortgageModal(player); break;
+    case 'trade': showTradeModal(player); break;
+    case 'goToJail': dispatch({ type: 'SEND_TO_JAIL', playerId: player.id }); break;
+    case 'payJailFine': dispatch({ type: 'PAY_JAIL_FINE', playerId: player.id }); break;
+    case 'useGoojf': dispatch({ type: 'USE_GOOJF', playerId: player.id }); break;
+    case 'collectSalary': showCollectSalaryModal(player); break;
+    case 'collectFreeParking': dispatch({ type: 'COLLECT_FREE_PARKING', playerId: player.id }); break;
+    case 'incomeTax': showIncomeTaxModal(player); break;
+    case 'luxuryTax':
+      dispatch({ type: 'PLAYER_TO_BANK', playerId: player.id, amount: 75, reason: 'Luxury Tax' });
+      showToast(`${player.name} paid $75 Luxury Tax.`, 'info');
+      break;
+    case 'endTurn': dispatch({ type: 'END_TURN' }); break;
+    case 'bankruptcy': showBankruptcyModal(player); break;
+    case 'sellHouse': showSellHouseModal(player); break;
+  }
+}
+
+function getTurnBlockMessage(action) {
+  const turn = state.turnState || {};
+  if (action === 'buyProperty' && turn.hasBoughtProperty) {
+    return 'Only one property can be bought on a turn.';
+  }
+  if ((action === 'drawChance' || action === 'drawCC') && turn.hasDrawnCard) {
+    return 'A Chance or Community Chest card was already drawn this turn.';
+  }
+  if (action === 'collectSalary' && turn.hasPassedGo) {
+    return 'Salary was already collected this turn.';
+  }
+  if ((action === 'incomeTax' || action === 'luxuryTax') && turn.hasPaidTax) {
+    return 'Tax was already paid this turn.';
+  }
+  return '';
 }
 
 // ═══════════════════════════════════════
@@ -933,21 +959,26 @@ function showBuyPropertyModal(player) {
 
   const content = `
     <div class="buy-property-modal">
-      <p class="modal-instruction">Select a property to purchase:</p>
+      <p class="modal-instruction">Select a property to purchase or send to auction:</p>
       <div class="property-select-list">
         ${unownedProps.map(p => {
-          const group = COLOR_GROUPS[p.colorGroup];
-          const canAfford = player.balance >= p.purchasePrice;
-          return `
-            <button class="property-select-btn ${!canAfford ? 'disabled' : ''}"
-              data-prop-id="${p.id}" ${!canAfford ? 'disabled' : ''}>
+    const group = COLOR_GROUPS[p.colorGroup];
+    const canAfford = player.balance >= p.purchasePrice;
+    return `
+            <div class="property-select-btn property-purchase-row">
               <div class="prop-select-color" style="background: ${group?.hex || '#999'}"></div>
-              <span class="prop-select-name">${p.name}</span>
+              <div class="prop-select-info">
+                <span class="prop-select-name">${p.name}</span>
+                <span class="prop-select-note">${canAfford ? 'Available to buy' : 'Cannot afford directly'}</span>
+              </div>
               <span class="prop-select-price">$${p.purchasePrice.toLocaleString()}</span>
-              ${!canAfford ? '<span class="prop-select-note">Cannot afford</span>' : ''}
-            </button>
+              <div class="property-purchase-actions">
+                <button class="btn btn-sm btn-success buy-property-btn" data-prop-id="${p.id}" ${!canAfford ? 'disabled' : ''}>Buy</button>
+                ${state.settings.rules.auctionUnowned ? `<button class="btn btn-sm btn-warning auction-property-btn" data-prop-id="${p.id}">Auction</button>` : ''}
+              </div>
+            </div>
           `;
-        }).join('')}
+  }).join('')}
       </div>
       <div class="modal-player-balance">Your balance: <strong>$${player.balance.toLocaleString()}</strong></div>
     </div>
@@ -955,8 +986,12 @@ function showBuyPropertyModal(player) {
 
   const closeModal = showModal('🏠 Buy Property', content);
 
-  document.querySelectorAll('.property-select-btn:not(.disabled)').forEach(btn => {
+  document.querySelectorAll('.buy-property-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (state.turnState?.hasBoughtProperty) {
+        showToast('Only one property can be bought on a turn.', 'error');
+        return;
+      }
       const propId = btn.dataset.propId;
       const propData = PROPERTIES.find(p => p.id === propId);
       closeModal();
@@ -964,6 +999,18 @@ function showBuyPropertyModal(player) {
         dispatch({ type: 'BUY_PROPERTY', playerId: player.id, propertyId: propId });
         showToast(`${player.name} bought ${propData.name}!`, 'success');
         // Check if auctions should follow (declined by active player — here it's a direct purchase)
+      }, 310);
+    });
+  });
+
+  document.querySelectorAll('.auction-property-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const propId = btn.dataset.propId;
+      const propData = PROPERTIES.find(p => p.id === propId);
+      closeModal();
+      setTimeout(() => {
+        showToast(`${propData.name} is up for auction.`, 'info');
+        showAuctionModal(propId);
       }, 310);
     });
   });
@@ -993,10 +1040,10 @@ function showPayRentModal(player) {
       ` : ''}
       <div class="property-select-list">
         ${ownedByOthers.map(p => {
-          const group = COLOR_GROUPS[p.colorGroup];
-          const owner = state.players.find(pl => pl.id === state.propertyStates[p.id].ownerId);
-          const rent = calculateRent(p.id, state.propertyStates, 7, null);
-          return `
+    const group = COLOR_GROUPS[p.colorGroup];
+    const owner = state.players.find(pl => pl.id === state.propertyStates[p.id].ownerId);
+    const rent = calculateRent(p.id, state.propertyStates, 7, null);
+    return `
             <button class="property-select-btn" data-prop-id="${p.id}">
               <div class="prop-select-color" style="background: ${group?.hex || '#999'}"></div>
               <div class="prop-select-info">
@@ -1006,7 +1053,7 @@ function showPayRentModal(player) {
               <span class="rent-amount" data-rent-display="${p.id}">$${rent.toLocaleString()}${p.type === 'utility' ? '*' : ''}</span>
             </button>
           `;
-        }).join('')}
+  }).join('')}
       </div>
       ${hasUtility ? '<p class="modal-note">* Utility rent depends on dice roll</p>' : ''}
     </div>
@@ -1051,6 +1098,11 @@ function showPayRentModal(player) {
 // ═══════════════════════════════════════
 
 function drawCard(deck, player) {
+  if (state.turnState?.hasDrawnCard) {
+    showToast('A Chance or Community Chest card was already drawn this turn.', 'error');
+    return;
+  }
+
   dispatch({ type: 'DRAW_CARD', deck });
 
   const card = state._drawnCard;
@@ -1064,10 +1116,10 @@ function drawCard(deck, player) {
     timestamp: new Date().toLocaleTimeString(),
   });
 
-  const isChance  = deck === 'chance';
+  const isChance = deck === 'chance';
   const borderColor = isChance ? '#F7941D' : '#4A90E2';
-  const deckLabel   = isChance ? 'CHANCE' : 'COMMUNITY CHEST';
-  const bgEmoji     = isChance ? '❓' : '📦';
+  const deckLabel = isChance ? 'CHANCE' : 'COMMUNITY CHEST';
+  const bgEmoji = isChance ? '❓' : '📦';
 
   const content = `
     <div class="card-draw-overlay">
@@ -1124,12 +1176,12 @@ function handleNearestUtilityCard(card, player) {
   const closeModal = showModal('🎲 Utility Card', content);
 
   document.getElementById('utility-roll-btn').addEventListener('click', () => {
-    const dice  = parseInt(document.getElementById('utility-dice').value) || 7;
+    const dice = parseInt(document.getElementById('utility-dice').value) || 7;
     const nearest = findNearest(player.boardPosition, 'utility');
-    const propId  = PROPERTIES.find(p => p.boardPosition === nearest)?.id;
+    const propId = PROPERTIES.find(p => p.boardPosition === nearest)?.id;
     dispatch({ type: 'APPLY_CARD_EFFECT', card });
     if (propId && state.propertyStates[propId]?.ownerId && state.propertyStates[propId].ownerId !== player.id) {
-      const rent  = dice * 10;
+      const rent = dice * 10;
       const owner = state.players.find(p => p.id === state.propertyStates[propId].ownerId);
       dispatch({ type: 'PLAYER_TO_PLAYER', fromId: player.id, toId: owner.id, amount: rent, reason: `Utility (Chance card) 10×${dice}` });
     }
@@ -1157,12 +1209,12 @@ function showBuildModal(player) {
       </div>
       <div class="property-select-list">
         ${buildable.map(p => {
-          const houseCheck = canBuildHouse(p.id, player.id, state.propertyStates, state.bank, state.settings.rules);
-          const hotelCheck = canBuildHotel(p.id, player.id, state.propertyStates, state.bank);
-          const group = COLOR_GROUPS[p.data.colorGroup];
-          const canAffordHouse = houseCheck.allowed && player.balance >= houseCheck.cost;
-          const canAffordHotel = hotelCheck.allowed && player.balance >= hotelCheck.cost;
-          return `
+    const houseCheck = canBuildHouse(p.id, player.id, state.propertyStates, state.bank, state.settings.rules);
+    const hotelCheck = canBuildHotel(p.id, player.id, state.propertyStates, state.bank);
+    const group = COLOR_GROUPS[p.data.colorGroup];
+    const canAffordHouse = houseCheck.allowed && player.balance >= houseCheck.cost;
+    const canAffordHotel = hotelCheck.allowed && player.balance >= hotelCheck.cost;
+    return `
             <div class="build-property-row">
               <div class="prop-select-color" style="background: ${group?.hex || '#999'}; width:14px; height:32px; border-radius:4px; margin-right:10px"></div>
               <div class="prop-select-info" style="flex:1">
@@ -1171,21 +1223,21 @@ function showBuildModal(player) {
               </div>
               <div class="build-actions">
                 ${houseCheck.allowed
-                  ? `<button class="btn btn-sm btn-success build-btn" data-prop-id="${p.id}" data-type="house"
+        ? `<button class="btn btn-sm btn-success build-btn" data-prop-id="${p.id}" data-type="house"
                       ${!canAffordHouse ? 'disabled' : ''}>
                       + House ($${houseCheck.cost})
                     </button>`
-                  : `<span class="build-reason">${houseCheck.reason}</span>`}
+        : `<span class="build-reason">${houseCheck.reason}</span>`}
                 ${hotelCheck.allowed
-                  ? `<button class="btn btn-sm btn-primary build-btn" data-prop-id="${p.id}" data-type="hotel"
+        ? `<button class="btn btn-sm btn-primary build-btn" data-prop-id="${p.id}" data-type="hotel"
                       ${!canAffordHotel ? 'disabled' : ''}>
                       + Hotel ($${hotelCheck.cost})
                     </button>`
-                  : ''}
+        : ''}
               </div>
             </div>
           `;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
   `;
@@ -1194,7 +1246,7 @@ function showBuildModal(player) {
 
   document.querySelectorAll('.build-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const propId    = btn.dataset.propId;
+      const propId = btn.dataset.propId;
       const buildType = btn.dataset.type;
       closeModal();
       setTimeout(() => {
@@ -1223,9 +1275,9 @@ function showSellHouseModal(player) {
       <p class="modal-instruction">Select a building to sell (half build cost refunded):</p>
       <div class="property-select-list">
         ${withBuildings.map(p => {
-          const group = COLOR_GROUPS[p.data.colorGroup];
-          const refund = Math.floor(group.buildCost / 2);
-          return `
+    const group = COLOR_GROUPS[p.data.colorGroup];
+    const refund = Math.floor(group.buildCost / 2);
+    return `
             <div class="build-property-row">
               <div class="prop-select-color" style="background: ${group?.hex || '#999'}; width:14px; height:32px; border-radius:4px; margin-right:10px"></div>
               <div class="prop-select-info" style="flex:1">
@@ -1234,14 +1286,14 @@ function showSellHouseModal(player) {
               </div>
               <div class="build-actions">
                 ${p.state.hasHotel
-                  ? `<button class="btn btn-sm btn-warning sell-btn" data-prop-id="${p.id}" data-type="hotel">Sell Hotel (+$${refund})</button>`
-                  : p.state.houses > 0
-                    ? `<button class="btn btn-sm btn-warning sell-btn" data-prop-id="${p.id}" data-type="house">Sell House (+$${refund})</button>`
-                    : ''}
+        ? `<button class="btn btn-sm btn-warning sell-btn" data-prop-id="${p.id}" data-type="hotel">Sell Hotel (+$${refund})</button>`
+        : p.state.houses > 0
+          ? `<button class="btn btn-sm btn-warning sell-btn" data-prop-id="${p.id}" data-type="house">Sell House (+$${refund})</button>`
+          : ''}
               </div>
             </div>
           `;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
   `;
@@ -1276,9 +1328,9 @@ function showMortgageModal(player) {
       <p class="modal-instruction">Select a property to mortgage:</p>
       <div class="property-select-list">
         ${mortgageable.map(p => {
-          const check = canMortgage(p.id, player.id, state.propertyStates);
-          const group = COLOR_GROUPS[p.data.colorGroup];
-          return `
+    const check = canMortgage(p.id, player.id, state.propertyStates);
+    const group = COLOR_GROUPS[p.data.colorGroup];
+    return `
             <button class="property-select-btn ${!check.allowed ? 'disabled' : ''}"
               data-prop-id="${p.id}" ${!check.allowed ? 'disabled' : ''}>
               <div class="prop-select-color" style="background: ${group?.hex || '#999'}"></div>
@@ -1287,7 +1339,7 @@ function showMortgageModal(player) {
               ${!check.allowed ? `<span class="prop-select-note">${check.reason}</span>` : ''}
             </button>
           `;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
   `;
@@ -1315,10 +1367,10 @@ function showUnmortgageModal(player) {
       <p class="modal-instruction">Select a property to unmortgage (mortgage value + 10% interest):</p>
       <div class="property-select-list">
         ${mortgaged.map(p => {
-          const cost = getUnmortgageCost(p.id);
-          const canAfford = player.balance >= cost;
-          const group = COLOR_GROUPS[p.data.colorGroup];
-          return `
+    const cost = getUnmortgageCost(p.id);
+    const canAfford = player.balance >= cost;
+    const group = COLOR_GROUPS[p.data.colorGroup];
+    return `
             <button class="property-select-btn ${!canAfford ? 'disabled' : ''}"
               data-prop-id="${p.id}" ${!canAfford ? 'disabled' : ''}>
               <div class="prop-select-color" style="background: ${group?.hex || '#999'}"></div>
@@ -1327,7 +1379,7 @@ function showUnmortgageModal(player) {
               ${!canAfford ? '<span class="prop-select-note">Cannot afford</span>' : ''}
             </button>
           `;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
   `;
@@ -1348,14 +1400,19 @@ function showUnmortgageModal(player) {
 // ═══════════════════════════════════════
 
 function showCollectSalaryModal(player) {
+  if (state.turnState?.hasPassedGo) {
+    showToast('Salary was already collected this turn.', 'error');
+    return;
+  }
+
   const content = `
     <div class="salary-modal">
       <p>Did <strong>${player.name}</strong> land exactly on Go?</p>
       <div class="salary-buttons">
         <button class="btn btn-success btn-lg" id="salary-passed">Passed Go ($200)</button>
         ${state.settings.rules.doubleSalaryOnGo
-          ? `<button class="btn btn-primary btn-lg" id="salary-exact">Landed on Go ($400)</button>`
-          : ''}
+      ? `<button class="btn btn-primary btn-lg" id="salary-exact">Landed on Go ($400)</button>`
+      : ''}
       </div>
     </div>
   `;
@@ -1383,7 +1440,12 @@ function showCollectSalaryModal(player) {
 // ═══════════════════════════════════════
 
 function showIncomeTaxModal(player) {
-  const netWorth   = calculateNetWorth(player, state.propertyStates);
+  if (state.turnState?.hasPaidTax) {
+    showToast('Tax was already paid this turn.', 'error');
+    return;
+  }
+
+  const netWorth = calculateNetWorth(player, state.propertyStates);
   const tenPercent = Math.floor(netWorth * 0.1);
 
   const content = `
@@ -1488,7 +1550,7 @@ function showTradeModal(player) {
   document.querySelectorAll('.trade-partner-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const partnerId = btn.dataset.partnerId;
-      const partner   = state.players.find(p => p.id === partnerId);
+      const partner = state.players.find(p => p.id === partnerId);
       // Close current modal cleanly, then open trade builder after animation completes
       closeModalThen(() => showTradeBuilder(player, partner));
     });
@@ -1496,10 +1558,10 @@ function showTradeModal(player) {
 }
 
 function showTradeBuilder(player1, player2) {
-  const p1Props  = player1.ownedPropertyIds.map(id => PROPERTIES.find(p => p.id === id)).filter(Boolean);
-  const p2Props  = player2.ownedPropertyIds.map(id => PROPERTIES.find(p => p.id === id)).filter(Boolean);
-  const p1Goojf  = player1.getOutOfJailFreeCards.chance + player1.getOutOfJailFreeCards.communityChest;
-  const p2Goojf  = player2.getOutOfJailFreeCards.chance + player2.getOutOfJailFreeCards.communityChest;
+  const p1Props = player1.ownedPropertyIds.map(id => PROPERTIES.find(p => p.id === id)).filter(Boolean);
+  const p2Props = player2.ownedPropertyIds.map(id => PROPERTIES.find(p => p.id === id)).filter(Boolean);
+  const p1Goojf = player1.getOutOfJailFreeCards.chance + player1.getOutOfJailFreeCards.communityChest;
+  const p2Goojf = player2.getOutOfJailFreeCards.chance + player2.getOutOfJailFreeCards.communityChest;
 
   const content = `
     <div class="trade-builder">
@@ -1517,7 +1579,7 @@ function showTradeBuilder(player1, player2) {
             ${p1Props.map(p => `
               <label class="trade-prop-check">
                 <input type="checkbox" value="${p.id}" class="trade-prop-1" />
-                <span class="prop-select-color" style="background:${COLOR_GROUPS[p.colorGroup]?.hex||'#999'};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
+                <span class="prop-select-color" style="background:${COLOR_GROUPS[p.colorGroup]?.hex || '#999'};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
                 ${p.name}${state.propertyStates[p.id].isMortgaged ? ' (M)' : ''}
               </label>
             `).join('')}
@@ -1545,7 +1607,7 @@ function showTradeBuilder(player1, player2) {
             ${p2Props.map(p => `
               <label class="trade-prop-check">
                 <input type="checkbox" value="${p.id}" class="trade-prop-2" />
-                <span class="prop-select-color" style="background:${COLOR_GROUPS[p.colorGroup]?.hex||'#999'};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
+                <span class="prop-select-color" style="background:${COLOR_GROUPS[p.colorGroup]?.hex || '#999'};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
                 ${p.name}${state.propertyStates[p.id].isMortgaged ? ' (M)' : ''}
               </label>
             `).join('')}
@@ -1568,12 +1630,12 @@ function showTradeBuilder(player1, player2) {
   const closeModal = showModal('🤝 Trade Builder', content);
 
   document.getElementById('trade-execute').addEventListener('click', () => {
-    const cash1   = parseInt(document.getElementById('trade-cash-1').value)  || 0;
-    const cash2   = parseInt(document.getElementById('trade-cash-2').value)  || 0;
-    const props1  = [...document.querySelectorAll('.trade-prop-1:checked')].map(c => c.value);
-    const props2  = [...document.querySelectorAll('.trade-prop-2:checked')].map(c => c.value);
-    const goojf1  = document.getElementById('trade-goojf-1')?.checked ? 1 : 0;
-    const goojf2  = document.getElementById('trade-goojf-2')?.checked ? 1 : 0;
+    const cash1 = parseInt(document.getElementById('trade-cash-1').value) || 0;
+    const cash2 = parseInt(document.getElementById('trade-cash-2').value) || 0;
+    const props1 = [...document.querySelectorAll('.trade-prop-1:checked')].map(c => c.value);
+    const props2 = [...document.querySelectorAll('.trade-prop-2:checked')].map(c => c.value);
+    const goojf1 = document.getElementById('trade-goojf-1')?.checked ? 1 : 0;
+    const goojf2 = document.getElementById('trade-goojf-2')?.checked ? 1 : 0;
 
     if (!cash1 && !cash2 && !props1.length && !props2.length && !goojf1 && !goojf2) {
       showToast('Empty trade! Add something to trade.', 'warning');
@@ -1596,11 +1658,11 @@ function showTradeBuilder(player1, player2) {
 // ═══════════════════════════════════════
 
 function showPropertyDetail(propertyId) {
-  const propData  = PROPERTIES.find(p => p.id === propertyId);
+  const propData = PROPERTIES.find(p => p.id === propertyId);
   if (!propData) return;
   const propState = state.propertyStates[propertyId];
-  const group     = COLOR_GROUPS[propData.colorGroup];
-  const owner     = state.players.find(p => p.id === propState.ownerId);
+  const group = COLOR_GROUPS[propData.colorGroup];
+  const owner = state.players.find(p => p.id === propState.ownerId);
 
   let rentTable = '';
   if (propData.type === 'property') {
@@ -1654,7 +1716,7 @@ function showPropertyDetail(propertyId) {
         <div class="detail-row"><span>Mortgage Value</span>  <span>$${propData.mortgageValue.toLocaleString()}</span></div>
         <div class="detail-row"><span>Unmortgage Cost</span> <span>$${getUnmortgageCost(propertyId).toLocaleString()}</span></div>
         <div class="detail-divider"></div>
-        <div class="detail-row"><span>Owner</span>           <span>${owner ? `${TOKENS.find(t=>t.id===owner.token)?.emoji||''} ${owner.name}` : 'Unowned'}</span></div>
+        <div class="detail-row"><span>Owner</span>           <span>${owner ? `${TOKENS.find(t => t.id === owner.token)?.emoji || ''} ${owner.name}` : 'Unowned'}</span></div>
         ${propData.type === 'property' ? `
           <div class="detail-row"><span>Buildings</span>     <span>${propState.hasHotel ? '🏨 Hotel' : `🏠 ${propState.houses}`}</span></div>
         ` : ''}
@@ -1669,10 +1731,10 @@ function showPropertyDetail(propertyId) {
 
 function needsDarkText(hex) {
   if (!hex) return false;
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return (r*299 + g*587 + b*114) / 1000 > 150;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150;
 }
 
 // ═══════════════════════════════════════
@@ -1680,9 +1742,9 @@ function needsDarkText(hex) {
 // ═══════════════════════════════════════
 
 function showAuctionModal(propertyId) {
-  const propData      = PROPERTIES.find(p => p.id === propertyId);
+  const propData = PROPERTIES.find(p => p.id === propertyId);
   const activePlayers = state.players.filter(p => !p.isBankrupt);
-  let currentBid    = 0;
+  let currentBid = 0;
   let currentBidder = null;
   let passedPlayers = new Set();
 
@@ -1692,7 +1754,7 @@ function showAuctionModal(propertyId) {
     container.innerHTML = `
       <div class="auction-modal">
         <div class="auction-property">
-          <div style="width:100%;height:8px;border-radius:4px;background:${COLOR_GROUPS[propData.colorGroup]?.hex||'#999'};margin-bottom:8px"></div>
+          <div style="width:100%;height:8px;border-radius:4px;background:${COLOR_GROUPS[propData.colorGroup]?.hex || '#999'};margin-bottom:8px"></div>
           <h3>${propData.name}</h3>
           <p style="font-size:13px;color:#888">List Price: $${propData.purchasePrice.toLocaleString()}</p>
         </div>
@@ -1705,14 +1767,20 @@ function showAuctionModal(propertyId) {
 
         <div class="auction-players">
           ${activePlayers.map(p => {
-            const hasPassed = passedPlayers.has(p.id);
-            return `
+      const hasPassed = passedPlayers.has(p.id);
+      return `
               <div class="auction-player ${hasPassed ? 'auction-passed' : ''}">
-                <span>${TOKENS.find(t=>t.id===p.token)?.emoji||''} ${p.name} ($${p.balance.toLocaleString()})</span>
+                <span>${TOKENS.find(t => t.id === p.token)?.emoji || ''} ${p.name} ($${p.balance.toLocaleString()})</span>
                 ${!hasPassed ? `
                   <div class="auction-actions">
+                    <div class="auction-quick-btns">
+                      <button class="auction-quick-btn" data-player-id="${p.id}" data-add="5">+$5</button>
+                      <button class="auction-quick-btn" data-player-id="${p.id}" data-add="10">+$10</button>
+                      <button class="auction-quick-btn" data-player-id="${p.id}" data-add="25">+$25</button>
+                      <button class="auction-quick-btn" data-player-id="${p.id}" data-add="50">+$50</button>
+                    </div>
                     <input type="number" class="auction-bid-input" data-player-id="${p.id}"
-                      min="${currentBid+1}" max="${p.balance}" value="${currentBid+1}" />
+                      min="${currentBid + 1}" max="${p.balance}" value="${currentBid + 1}" />
                     <button class="btn btn-sm btn-success auction-bid-btn" data-player-id="${p.id}"
                       ${p.balance <= currentBid ? 'disabled' : ''}>Bid</button>
                     <button class="btn btn-sm btn-secondary auction-pass-btn" data-player-id="${p.id}">Pass</button>
@@ -1720,7 +1788,7 @@ function showAuctionModal(propertyId) {
                 ` : '<span class="passed-label">Passed</span>'}
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
 
         ${passedPlayers.size >= activePlayers.length - (currentBidder ? 1 : 0) ? `
@@ -1731,15 +1799,27 @@ function showAuctionModal(propertyId) {
       </div>
     `;
 
+    document.querySelectorAll('.auction-quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const playerId = btn.dataset.playerId;
+        const input = document.querySelector(`.auction-bid-input[data-player-id="${playerId}"]`);
+        const player = state.players.find(p => p.id === playerId);
+        if (!input || !player) return;
+        const add = parseInt(btn.dataset.add, 10);
+        const currentValue = parseInt(input.value) || currentBid;
+        input.value = Math.min(player.balance, currentValue + add);
+      });
+    });
+
     document.querySelectorAll('.auction-bid-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const playerId  = btn.dataset.playerId;
-        const input     = document.querySelector(`.auction-bid-input[data-player-id="${playerId}"]`);
-        const bidAmount = parseInt(input.value) || currentBid+1;
-        const pl        = state.players.find(p => p.id === playerId);
+        const playerId = btn.dataset.playerId;
+        const input = document.querySelector(`.auction-bid-input[data-player-id="${playerId}"]`);
+        const bidAmount = parseInt(input.value) || currentBid + 1;
+        const pl = state.players.find(p => p.id === playerId);
         if (bidAmount > pl.balance) { showToast('Cannot bid more than your balance!', 'error'); return; }
         if (bidAmount <= currentBid) { showToast('Bid must be higher than current bid!', 'error'); return; }
-        currentBid    = bidAmount;
+        currentBid = bidAmount;
         currentBidder = pl;
         renderAuction();
       });
@@ -1755,7 +1835,7 @@ function showAuctionModal(propertyId) {
         if (currentBidder) {
           dispatch({ type: 'AUCTION_BUY', playerId: currentBidder.id, propertyId, price: currentBid });
         }
-        const overlay   = document.getElementById('modal-overlay');
+        const overlay = document.getElementById('modal-overlay');
         const container = document.getElementById('modal-container');
         if (overlay) overlay.classList.remove('modal-visible');
         setTimeout(() => { if (container) container.innerHTML = ''; }, 280);
@@ -1773,21 +1853,21 @@ function showAuctionModal(propertyId) {
 
 function renderWinScreen() {
   const remaining = state.players.filter(p => !p.isBankrupt);
-  const winner    = remaining[0];
+  const winner = remaining[0];
   if (!winner) { app.innerHTML = '<div class="splash-screen"><h1>Game Over</h1></div>'; return; }
 
-  const token        = TOKENS.find(t => t.id === winner.token);
-  const winnerNW     = calculateNetWorth(winner, state.propertyStates);
-  const houseCount   = winner.ownedPropertyIds.reduce((s,id)=>s+(state.propertyStates[id]?.houses||0),0);
-  const hotelCount   = winner.ownedPropertyIds.filter(id=>state.propertyStates[id]?.hasHotel).length;
-  const rankings     = state.players.filter(p=>p.isBankrupt).sort((a,b)=>(b.bankruptOrder||0)-(a.bankruptOrder||0));
+  const token = TOKENS.find(t => t.id === winner.token);
+  const winnerNW = calculateNetWorth(winner, state.propertyStates);
+  const houseCount = winner.ownedPropertyIds.reduce((s, id) => s + (state.propertyStates[id]?.houses || 0), 0);
+  const hotelCount = winner.ownedPropertyIds.filter(id => state.propertyStates[id]?.hasHotel).length;
+  const rankings = state.players.filter(p => p.isBankrupt).sort((a, b) => (b.bankruptOrder || 0) - (a.bankruptOrder || 0));
 
   app.innerHTML = `
     <div class="win-screen">
       <div class="confetti-container" id="confetti-container"></div>
       <div class="win-content">
         <div class="win-crown">👑</div>
-        <div class="win-token">${token?.emoji||'🎩'}</div>
+        <div class="win-token">${token?.emoji || '🎩'}</div>
         <h1 class="win-name">${winner.name}</h1>
         <h2 class="win-title">WINS!</h2>
         <div class="win-stats">
@@ -1816,17 +1896,17 @@ function renderWinScreen() {
               <span class="rank-name">${token?.emoji} ${winner.name}</span>
               <span class="rank-status">Winner!</span>
             </div>
-            ${rankings.map((p,i) => {
-              const pToken  = TOKENS.find(t=>t.id===p.token);
-              const medals  = ['🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
-              return `
+            ${rankings.map((p, i) => {
+    const pToken = TOKENS.find(t => t.id === p.token);
+    const medals = ['🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'];
+    return `
                 <div class="ranking-item">
-                  <span class="rank">${medals[i]||(i+2)}</span>
-                  <span class="rank-name">${pToken?.emoji||''} ${p.name}</span>
-                  <span class="rank-status">Eliminated #${p.bankruptOrder||'?'}</span>
+                  <span class="rank">${medals[i] || (i + 2)}</span>
+                  <span class="rank-name">${pToken?.emoji || ''} ${p.name}</span>
+                  <span class="rank-status">Eliminated #${p.bankruptOrder || '?'}</span>
                 </div>
               `;
-            }).join('')}
+  }).join('')}
           </div>
         </div>
         <button class="btn btn-primary btn-lg" id="btn-new-game-win" style="width:100%">
@@ -1853,17 +1933,17 @@ function renderWinScreen() {
 function createConfetti() {
   const container = document.getElementById('confetti-container');
   if (!container) return;
-  const colors = ['#E53935','#D4AF37','#2E7D32','#4A90E2','#FF9800','#9C27B0','#00BCD4'];
+  const colors = ['#E53935', '#D4AF37', '#2E7D32', '#4A90E2', '#FF9800', '#9C27B0', '#00BCD4'];
   for (let i = 0; i < 120; i++) {
     const el = document.createElement('div');
     el.className = 'confetti-piece';
     el.style.cssText = `
-      left: ${Math.random()*100}%;
-      background: ${colors[Math.floor(Math.random()*colors.length)]};
-      animation-delay: ${Math.random()*4}s;
-      animation-duration: ${Math.random()*2+2.5}s;
-      width: ${Math.random()*10+5}px;
-      height: ${Math.random()*16+8}px;
+      left: ${Math.random() * 100}%;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      animation-delay: ${Math.random() * 4}s;
+      animation-duration: ${Math.random() * 2 + 2.5}s;
+      width: ${Math.random() * 10 + 5}px;
+      height: ${Math.random() * 16 + 8}px;
       border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
     `;
     container.appendChild(el);
@@ -1881,10 +1961,10 @@ function showToast(message, type = 'info') {
     container.id = 'toast-container';
     document.body.appendChild(container);
   }
-  const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = `<span>${icons[type]||''}</span><span class="toast-message">${message}</span>`;
+  toast.innerHTML = `<span>${icons[type] || ''}</span><span class="toast-message">${message}</span>`;
   container.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('toast-visible'));
   setTimeout(() => {
@@ -1904,4 +1984,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.__dispatch = dispatch;
-window.__state    = () => state;
+window.__state = () => state;
