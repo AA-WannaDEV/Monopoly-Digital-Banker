@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════
-// MONOPOLY BANKING COMPANION — Main Application
+// MONOPOLY BANKING COMPANION — Main Application v4.0
 // ═══════════════════════════════════════
 
 import { TOKENS, PLAYER_COLORS } from './data/tokens.js';
@@ -7,8 +7,9 @@ import { PROPERTIES, COLOR_GROUPS, RAILROAD_RENT } from './data/properties.js';
 import { BOARD_SPACES } from './data/boardSpaces.js';
 import {
   createInitialState, gameReducer, saveGame, loadGame, clearSave,
-  calculateRent, calculateNetWorth, canBuildHouse, canBuildHotel,
-  canMortgage, getUnmortgageCost, findNearest, createPlayer
+  calculateRent, calculateNetWorth, calculateLiquidationValue,
+  canBuildHouse, canBuildHotel, canMortgage, getUnmortgageCost,
+  findNearest, createPlayer
 } from './engine/gameEngine.js';
 
 // ═══════════════════════════════════════
@@ -28,10 +29,9 @@ function toggleTheme() {
   const current = getTheme();
   const next = current === 'light' ? 'dark' : 'light';
   applyTheme(next);
-  render(); // re-render to update toggle button label
+  render();
 }
 
-// Apply saved theme immediately
 applyTheme(getTheme());
 
 // ═══════════════════════════════════════
@@ -40,17 +40,27 @@ applyTheme(getTheme());
 
 let state = createInitialState();
 let previousBalances = {};
-// Track card draw history per player (in-memory, resets each session)
-let cardHistory = {}; // { playerId: [{deck, text, timestamp}] }
+let cardHistory = {};
 
 function dispatch(action) {
   const oldState = state;
-  // Track balances before update
   oldState.players.forEach(p => {
     previousBalances[p.id] = p.balance;
   });
   state = gameReducer(state, action);
   saveGame(state);
+
+  // Auto-bankruptcy detection: after any payment, check if active player can't pay
+  if (['PLAYER_TO_BANK', 'PLAYER_TO_PLAYER', 'APPLY_CARD_EFFECT'].includes(action.type)) {
+    const ap = state.players[state.activePlayerIndex];
+    if (ap && !ap.isBankrupt && ap.balance < 0) {
+      const liquidation = calculateLiquidationValue(ap, state.propertyStates);
+      if (liquidation <= 0) {
+        setTimeout(() => showAutoBankruptcyModal(ap), 350);
+      }
+    }
+  }
+
   render();
 }
 
@@ -117,7 +127,7 @@ function renderSplash() {
 
         <div class="splash-footer">
           <div class="splash-divider"></div>
-          <p class="splash-version">Companion App v2.0</p>
+          <p class="splash-version">Companion App v4.0</p>
         </div>
       </div>
 
@@ -160,6 +170,9 @@ function renderSetup() {
   app.innerHTML = `
     <div class="setup-screen">
       <div class="setup-header">
+        <button class="btn btn-sm btn-secondary" id="btn-back-home" style="position:absolute;left:20px;top:20px;">
+          ← Home
+        </button>
         <h1 class="setup-title">GAME SETUP</h1>
         <p class="setup-desc">Configure your players and house rules</p>
       </div>
@@ -208,6 +221,7 @@ function renderSetup() {
             ${renderRuleToggle('freeParkingJackpot', 'Free Parking Jackpot', 'Taxes and fines go into a pool collected by landing on Free Parking.', state.settings.rules.freeParkingJackpot)}
             ${renderRuleToggle('noBuildOnMortgagedGroup', 'No Build on Mortgaged Group', 'Cannot build houses if any property in the color group is mortgaged.', state.settings.rules.noBuildOnMortgagedGroup)}
             ${renderRuleToggle('doubleSalaryOnGo', 'Double Salary on Go', 'Collect $400 instead of $200 when landing exactly on Go.', state.settings.rules.doubleSalaryOnGo)}
+            ${renderRuleToggle('useDigitalDice', '🎲 Use Digital Dice', 'Show an animated dice roller in the game instead of using physical dice.', state.settings.rules.useDigitalDice)}
           </div>
         </div>
 
@@ -221,6 +235,11 @@ function renderSetup() {
       </div>
     </div>
   `;
+
+  document.getElementById('btn-back-home').addEventListener('click', () => {
+    state = createInitialState();
+    dispatch({ type: 'SET_PHASE', phase: 'splash' });
+  });
 
   const addBtn = document.getElementById('btn-add-player');
   if (addBtn) {
@@ -281,11 +300,88 @@ function renderRuleToggle(ruleKey, title, description, isOn) {
 }
 
 // ═══════════════════════════════════════
+// DIGITAL DICE PANEL
+// ═══════════════════════════════════════
+
+function renderDicePanel(activePlayer) {
+  if (!state.settings.rules.useDigitalDice) return '';
+  const { die1, die2, isDoubles, rolling } = state.diceState || { die1: 1, die2: 1, isDoubles: false, rolling: false };
+  const total = die1 + die2;
+  const ts = state.turnState || {};
+  const inJail = activePlayer.isInJail;
+
+  // Determine what message to show
+  let rollMsg = '';
+  if (ts.hasRolled) {
+    if (ts.releasedFromJailByDoubles) {
+      rollMsg = `<span class="dice-result-msg dice-doubles">🎉 Doubles! Released from jail! Move ${total} spaces.</span>`;
+    } else if (inJail && !isDoubles) {
+      rollMsg = `<span class="dice-result-msg dice-fail">🔒 No doubles. Still in jail (attempt ${activePlayer.jailTurnsSpent}/3)</span>`;
+    } else if (isDoubles && !inJail) {
+      rollMsg = `<span class="dice-result-msg dice-doubles">🎉 Doubles! Roll again!</span>`;
+    } else {
+      rollMsg = `<span class="dice-result-msg">Total: ${total}</span>`;
+    }
+  }
+
+  return `
+    <div class="dice-panel">
+      <div class="dice-panel-label">🎲 Digital Dice</div>
+      <div class="dice-display">
+        <div class="die die-1 ${rolling ? 'die-rolling' : ''}" id="die-face-1">
+          ${renderDieFace(die1, ts.hasRolled)}
+        </div>
+        <span class="dice-plus">+</span>
+        <div class="die die-2 ${rolling ? 'die-rolling' : ''}" id="die-face-2">
+          ${renderDieFace(die2, ts.hasRolled)}
+        </div>
+      </div>
+      ${rollMsg}
+      <button class="btn btn-primary dice-roll-btn" id="btn-roll-dice"
+        ${ts.hasRolled && !canRollAgain(activePlayer) ? 'disabled' : ''}>
+        🎲 ${ts.hasRolled && !canRollAgain(activePlayer) ? 'Rolled' : 'Roll Dice'}
+      </button>
+    </div>
+  `;
+}
+
+function canRollAgain(player) {
+  // Can roll again if: just need to roll first time, or took doubles extra turn reset
+  const ts = state.turnState || {};
+  return !ts.hasRolled;
+}
+
+function renderDieFace(value, revealed) {
+  if (!revealed) {
+    return `<div class="die-face die-face-hidden"><div class="die-dot-center">?</div></div>`;
+  }
+  const dotPatterns = {
+    1: ['center'],
+    2: ['top-right', 'bottom-left'],
+    3: ['top-right', 'center', 'bottom-left'],
+    4: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+    5: ['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'],
+    6: ['top-left', 'top-right', 'mid-left', 'mid-right', 'bottom-left', 'bottom-right'],
+  };
+  const dots = dotPatterns[value] || [];
+  const allPositions = ['top-left', 'top-right', 'mid-left', 'center', 'mid-right', 'bottom-left', 'bottom-right'];
+  return `
+    <div class="die-face die-face-${value}">
+      ${allPositions.map(pos => `
+        <div class="die-dot die-dot-${pos} ${dots.includes(pos) ? 'die-dot-active' : 'die-dot-empty'}"></div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════
 // GAME DASHBOARD
 // ═══════════════════════════════════════
 
 function renderDashboard() {
   const activePlayer = state.players[state.activePlayerIndex];
+  const ts = state.turnState || {};
+  const showDoublesBtn = ts.hasRolled && ts.doublesCount > 0 && !activePlayer.isInJail && !ts.releasedFromJailByDoubles;
 
   app.innerHTML = `
     <div class="dashboard">
@@ -331,12 +427,31 @@ function renderDashboard() {
             📊 My Stats
           </button>
         </div>
+
+        ${renderDicePanel(activePlayer)}
+
         <div class="action-grid" id="action-grid">
           ${renderActionButtons(activePlayer)}
         </div>
-        <div class="turn-actions">
-          <button class="action-btn action-end" data-action="endTurn"><span class="action-icon">⏭️</span> End Turn</button>
-          <button class="action-btn action-bankrupt" data-action="bankruptcy"><span class="action-icon">🚪</span> Quit Game</button>
+
+        ${showDoublesBtn ? `
+          <div class="doubles-banner">
+            <span class="doubles-banner-icon">🎲🎲</span>
+            <span class="doubles-banner-text">You rolled doubles! You get an extra turn.</span>
+            <button class="btn btn-success doubles-extra-turn-btn" id="btn-extra-turn">
+              ✨ Take Extra Turn
+            </button>
+          </div>
+        ` : ''}
+
+        <!-- Terminal action buttons: visually separated -->
+        <div class="terminal-actions">
+          <button class="action-btn action-end" data-action="endTurn">
+            <span class="action-icon">⏭️</span> End Turn
+          </button>
+          <button class="action-btn action-bankrupt" data-action="bankruptcy">
+            <span class="action-icon">🚪</span> Quit Game
+          </button>
         </div>
       </section>
 
@@ -380,6 +495,9 @@ function renderDashboard() {
     <div id="modal-container"></div>
     <div id="toast-container"></div>
   `;
+
+  // Scroll to top on render
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 
   bindDashboardEvents();
   animateBalanceChanges();
@@ -440,7 +558,7 @@ function renderBankruptPlayerCard(player) {
 }
 
 // ═══════════════════════════════════════
-// PLAYER INFO PANEL  (Bug fix #2 — new feature)
+// PLAYER INFO PANEL
 // ═══════════════════════════════════════
 
 function renderPlayerInfoPanel(player) {
@@ -449,7 +567,6 @@ function renderPlayerInfoPanel(player) {
   const hotelCount = player.ownedPropertyIds.filter(id => state.propertyStates[id]?.hasHotel).length;
   const goojfTotal = player.getOutOfJailFreeCards.chance + player.getOutOfJailFreeCards.communityChest;
 
-  // Group owned properties by colour
   const groupedProps = {};
   player.ownedPropertyIds.forEach(id => {
     const propData = PROPERTIES.find(p => p.id === id);
@@ -459,7 +576,6 @@ function renderPlayerInfoPanel(player) {
     groupedProps[g].push(propData);
   });
 
-  // Check if player has a monopoly in each group
   const monopolyGroups = Object.keys(groupedProps).filter(g => {
     const allInGroup = PROPERTIES.filter(p => p.colorGroup === g);
     return allInGroup.every(p => player.ownedPropertyIds.includes(p.id));
@@ -487,7 +603,6 @@ function renderPlayerInfoPanel(player) {
     `;
   }).join('');
 
-  // Card history for this player
   const history = (cardHistory[player.id] || []).slice(-4).reverse();
   const historyHTML = history.length > 0
     ? history.map(h => `
@@ -577,8 +692,11 @@ function renderPlayerInfoPanel(player) {
 function renderActionButtons(player) {
   const hasGoojf = player.getOutOfJailFreeCards.chance + player.getOutOfJailFreeCards.communityChest > 0;
   const salaryAmt = state.settings.rules.doubleSalaryOnGo ? '$200/$400' : '$200';
+  const ts = state.turnState || {};
 
   if (player.isInJail) {
+    // If digital dice used and not yet rolled this turn, show roll-in-jail options
+    const needsRoll = state.settings.rules.useDigitalDice;
     return `
       <button class="action-btn action-jail" data-action="payJailFine" ${player.balance < 50 ? 'disabled' : ''}>
         <span class="action-icon">💸</span> Pay $50 Fine
@@ -586,6 +704,11 @@ function renderActionButtons(player) {
       <button class="action-btn action-jail" data-action="useGoojf" ${!hasGoojf ? 'disabled' : ''}>
         <span class="action-icon">🎫</span> Use GOOJF Card
       </button>
+      ${ts.hasRolled && ts.releasedFromJailByDoubles ? `
+        <div class="jail-released-banner">
+          🎉 Released by doubles! Move ${(state.diceState?.die1 || 0) + (state.diceState?.die2 || 0)} spaces then proceed.
+        </div>
+      ` : ''}
       <button class="action-btn action-trade"     data-action="trade">     <span class="action-icon">🤝</span> Trade </button>
       <button class="action-btn action-mortgage"  data-action="mortgage">  <span class="action-icon">🏦</span> Mortgage </button>
       <button class="action-btn action-unmortgage"data-action="unmortgage"><span class="action-icon">🔓</span> Unmortgage </button>
@@ -596,16 +719,20 @@ function renderActionButtons(player) {
   return `
     <button class="action-btn action-buy"       data-action="buyProperty">  <span class="action-icon">🏠</span> Buy Property </button>
     <button class="action-btn action-rent"      data-action="payRent">      <span class="action-icon">💸</span> Pay Rent </button>
-    <button class="action-btn action-chance"    data-action="drawChance">   <span class="action-icon">❓</span> Draw Chance </button>
-    <button class="action-btn action-cc"        data-action="drawCC">       <span class="action-icon">📦</span> Community Chest </button>
+    <button class="action-btn action-chance"    data-action="drawChance"    ${ts.hasDrawnCard ? 'disabled title="Card already drawn this turn"' : ''}>
+      <span class="action-icon">❓</span> Draw Chance
+    </button>
+    <button class="action-btn action-cc"        data-action="drawCC"        ${ts.hasDrawnCard ? 'disabled title="Card already drawn this turn"' : ''}>
+      <span class="action-icon">📦</span> Community Chest
+    </button>
     <button class="action-btn action-build"     data-action="build">        <span class="action-icon">🏗️</span> Build Houses </button>
     <button class="action-btn action-mortgage"  data-action="mortgage">     <span class="action-icon">🏦</span> Mortgage </button>
     <button class="action-btn action-unmortgage"data-action="unmortgage">   <span class="action-icon">🔓</span> Unmortgage </button>
     <button class="action-btn action-trade"     data-action="trade">        <span class="action-icon">🤝</span> Trade </button>
     <button class="action-btn action-jail"      data-action="goToJail">     <span class="action-icon">🔒</span> Go to Jail </button>
-    <button class="action-btn action-salary"    data-action="collectSalary"><span class="action-icon">💰</span> Collect ${salaryAmt} Salary </button>
-    <button class="action-btn action-tax"       data-action="incomeTax">    <span class="action-icon">📊</span> Income Tax </button>
-    <button class="action-btn action-tax"       data-action="luxuryTax">    <span class="action-icon">💎</span> Luxury Tax ($75) </button>
+    <button class="action-btn action-salary"    data-action="collectSalary" ${ts.hasPassedGo ? 'disabled title="Salary already collected"' : ''}><span class="action-icon">💰</span> Collect ${salaryAmt} Salary </button>
+    <button class="action-btn action-tax"       data-action="incomeTax"     ${ts.hasPaidTax ? 'disabled title="Tax already paid this turn"' : ''}><span class="action-icon">📊</span> Income Tax </button>
+    <button class="action-btn action-tax"       data-action="luxuryTax"     ${ts.hasPaidTax ? 'disabled title="Tax already paid this turn"' : ''}><span class="action-icon">💎</span> Luxury Tax ($75) </button>
     ${state.settings.rules.freeParkingJackpot && state.freeParkingPool > 0 ? `
       <button class="action-btn action-salary"  data-action="collectFreeParking">
         <span class="action-icon">🅿️</span> Free Parking $${state.freeParkingPool.toLocaleString()}
@@ -663,12 +790,10 @@ function animateBalanceChanges() {
     const newVal = p.balance;
     if (oldVal === undefined || oldVal === newVal) return;
 
-    // Flash direction
     el.classList.remove('balance-up', 'balance-down');
-    void el.offsetWidth; // reflow
+    void el.offsetWidth;
     el.classList.add(newVal > oldVal ? 'balance-up' : 'balance-down');
 
-    // Animated counter
     const duration = 600;
     const start = performance.now();
     const diff = newVal - oldVal;
@@ -691,11 +816,30 @@ function bindDashboardEvents() {
   const activePlayer = state.players[state.activePlayerIndex];
 
   document.getElementById('dash-theme-btn')?.addEventListener('click', toggleTheme);
-
   document.getElementById('btn-view-player-details')?.addEventListener('click', () =>
     showPlayerDetailModal(activePlayer));
 
-  document.querySelectorAll('.action-btn').forEach(btn => {
+  // Digital dice roll button
+  document.getElementById('btn-roll-dice')?.addEventListener('click', () => {
+    const diceEls = document.querySelectorAll('.die');
+    diceEls.forEach(d => d.classList.add('die-rolling'));
+    setTimeout(() => {
+      dispatch({ type: 'ROLL_DICE' });
+    }, 400);
+  });
+
+  // Extra turn (doubles) button
+  document.getElementById('btn-extra-turn')?.addEventListener('click', () => {
+    dispatch({ type: 'RESET_DOUBLES_TURN' });
+  });
+
+  document.querySelectorAll('.action-btn:not(.terminal-action)').forEach(btn => {
+    if (btn.closest('.terminal-actions')) return;
+    btn.addEventListener('click', e => handleAction(e.currentTarget.dataset.action, activePlayer));
+  });
+
+  // Terminal action buttons (End Turn / Quit Game)
+  document.querySelectorAll('.terminal-actions .action-btn').forEach(btn => {
     btn.addEventListener('click', e => handleAction(e.currentTarget.dataset.action, activePlayer));
   });
 
@@ -707,7 +851,6 @@ function bindDashboardEvents() {
     });
   }
 
-  // Player card click → show that player's detail
   document.querySelectorAll('.player-card:not(.player-card-bankrupt)').forEach(card => {
     card.addEventListener('click', () => {
       const pid = card.dataset.playerId;
@@ -726,7 +869,7 @@ function bindPropertyClicks() {
 }
 
 // ═══════════════════════════════════════
-// PLAYER DETAIL MODAL (comprehensive)
+// PLAYER DETAIL MODAL
 // ═══════════════════════════════════════
 
 function showPlayerDetailModal(player) {
@@ -736,7 +879,6 @@ function showPlayerDetailModal(player) {
   const goojfTotal = player.getOutOfJailFreeCards.chance + player.getOutOfJailFreeCards.communityChest;
   const token = TOKENS.find(t => t.id === player.token);
 
-  // Build property groups
   const groupedProps = {};
   player.ownedPropertyIds.forEach(id => {
     const propData = PROPERTIES.find(p => p.id === id);
@@ -938,7 +1080,6 @@ function showModal(title, content, onClose, hideCloseButton = false) {
   return closeModal;
 }
 
-// Helper: close modal without triggering onClose callback, then run a fn
 function closeModalThen(fn, delay = 310) {
   const overlay = document.getElementById('modal-overlay');
   const container = document.getElementById('modal-container');
@@ -998,7 +1139,6 @@ function showBuyPropertyModal(player) {
       setTimeout(() => {
         dispatch({ type: 'BUY_PROPERTY', playerId: player.id, propertyId: propId });
         showToast(`${player.name} bought ${propData.name}!`, 'success');
-        // Check if auctions should follow (declined by active player — here it's a direct purchase)
       }, 310);
     });
   });
@@ -1094,7 +1234,7 @@ function showPayRentModal(player) {
 }
 
 // ═══════════════════════════════════════
-// MODALS — DRAW CARD
+// MODALS — DRAW CARD (with conditional choice UI)
 // ═══════════════════════════════════════
 
 function drawCard(deck, player) {
@@ -1144,49 +1284,180 @@ function drawCard(deck, player) {
 
   const modalBody = document.querySelector('.modal-body');
   if (modalBody) {
-    const applyBtn = document.createElement('button');
-    applyBtn.className = 'btn btn-primary btn-lg card-apply-btn';
-    applyBtn.innerHTML = '✓ Apply Effect';
-    applyBtn.addEventListener('click', () => {
-      if (card.effectType === 'advanceToNearest' && card.effectPayload.targetType === 'utility') {
+    if (card.requiresChoice && card.choiceType) {
+      // Render conditional choice buttons
+      renderCardChoiceButtons(card, player, modalBody, closeModal);
+    } else {
+      // Simple apply effect button
+      const applyBtn = document.createElement('button');
+      applyBtn.className = 'btn btn-primary btn-lg card-apply-btn';
+      applyBtn.innerHTML = '✓ Apply Effect';
+      applyBtn.addEventListener('click', () => {
+        if (state.turnState?.hasAppliedCard) {
+          showToast('Card effect already applied this turn.', 'error');
+          closeModal();
+          return;
+        }
+        dispatch({ type: 'APPLY_CARD_EFFECT', card, context: {} });
         closeModal();
-        setTimeout(() => handleNearestUtilityCard(card, player), 310);
-        return;
-      }
-      dispatch({ type: 'APPLY_CARD_EFFECT', card });
-      closeModal();
-      showToast('Card effect applied!', 'success');
-    });
-    modalBody.appendChild(applyBtn);
+        showToast('Card effect applied!', 'success');
+      });
+      modalBody.appendChild(applyBtn);
+    }
   }
 }
 
-function handleNearestUtilityCard(card, player) {
-  const content = `
-    <div class="utility-dice-modal">
-      <p>You advanced to the nearest Utility.</p>
-      <p style="margin-top:8px">If owned, enter your dice roll (owner gets 10× total):</p>
-      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
-        <input type="number" id="utility-dice" class="dice-input" min="2" max="12" value="7" style="width:80px" />
-        <button class="btn btn-primary" id="utility-roll-btn">Calculate & Pay</button>
+function renderCardChoiceButtons(card, player, modalBody, closeModal) {
+  const choiceContainer = document.createElement('div');
+  choiceContainer.className = 'card-choice-container';
+
+  if (card.choiceType === 'passedGo') {
+    // Player needs to confirm if they passed Go
+    choiceContainer.innerHTML = `
+      <div class="card-choice-label">Did you pass Go on your way there?</div>
+      <div class="card-choice-btns">
+        <button class="btn btn-success card-choice-btn" data-choice="yes">
+          ✅ Yes — I passed Go (+$200)
+        </button>
+        <button class="btn btn-secondary card-choice-btn" data-choice="no">
+          ❌ No — I went directly
+        </button>
       </div>
-    </div>
-  `;
+    `;
+    modalBody.appendChild(choiceContainer);
 
-  const closeModal = showModal('🎲 Utility Card', content);
+    modalBody.querySelectorAll('.card-choice-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.turnState?.hasAppliedCard) { closeModal(); return; }
+        const passedGo = btn.dataset.choice === 'yes';
+        dispatch({ type: 'APPLY_CARD_EFFECT', card, context: { passedGo } });
+        closeModal();
+        showToast(`Card applied! ${passedGo ? 'Collected $200 for passing Go.' : ''}`, 'success');
+      });
+    });
 
-  document.getElementById('utility-roll-btn').addEventListener('click', () => {
-    const dice = parseInt(document.getElementById('utility-dice').value) || 7;
-    const nearest = findNearest(player.boardPosition, 'utility');
-    const propId = PROPERTIES.find(p => p.boardPosition === nearest)?.id;
-    dispatch({ type: 'APPLY_CARD_EFFECT', card });
-    if (propId && state.propertyStates[propId]?.ownerId && state.propertyStates[propId].ownerId !== player.id) {
-      const rent = dice * 10;
-      const owner = state.players.find(p => p.id === state.propertyStates[propId].ownerId);
-      dispatch({ type: 'PLAYER_TO_PLAYER', fromId: player.id, toId: owner.id, amount: rent, reason: `Utility (Chance card) 10×${dice}` });
+  } else if (card.choiceType === 'nearestProperty') {
+    // Find the nearest property
+    const targetType = card.effectPayload.targetType;
+    const nearestPos = findNearest(player.boardPosition, targetType);
+    const nearestProp = PROPERTIES.find(p => p.boardPosition === nearestPos);
+    const propState = nearestProp ? state.propertyStates[nearestProp.id] : null;
+    const isOwned = propState && propState.ownerId;
+    const owner = isOwned ? state.players.find(p => p.id === propState.ownerId) : null;
+    const isOwnedByActivePlayer = isOwned && propState.ownerId === player.id;
+
+    const propLabel = nearestProp
+      ? `<div class="card-nearest-prop">
+          Nearest ${targetType === 'railroad' ? 'Railroad' : 'Utility'}:
+          <strong>${nearestProp.name}</strong>
+          ${isOwned
+          ? `<span class="card-prop-owned-tag">Owned by ${isOwnedByActivePlayer ? 'YOU' : owner?.name || '?'}</span>`
+          : `<span class="card-prop-unowned-tag">Unowned</span>`}
+        </div>`
+      : '';
+
+    if (isOwnedByActivePlayer) {
+      // Owned by this player — no rent, just move
+      choiceContainer.innerHTML = `
+        ${propLabel}
+        <div class="card-choice-label">You own this property — no rent to pay.</div>
+        <button class="btn btn-primary card-choice-btn-single" id="card-move-only">
+          🚶 Move There (No Rent)
+        </button>
+      `;
+      modalBody.appendChild(choiceContainer);
+      document.getElementById('card-move-only').addEventListener('click', () => {
+        if (state.turnState?.hasAppliedCard) { closeModal(); return; }
+        dispatch({ type: 'APPLY_CARD_EFFECT', card, context: {} });
+        closeModal();
+        showToast(`Moved to ${nearestProp?.name}.`, 'info');
+      });
+    } else if (!isOwned) {
+      // Unowned — can buy from bank
+      choiceContainer.innerHTML = `
+        ${propLabel}
+        <div class="card-choice-label">This property is unowned. You may buy it from the Bank.</div>
+        <div class="card-choice-btns">
+          <button class="btn btn-success card-choice-btn" data-choice="buy">
+            🏦 Buy from Bank ($${nearestProp?.purchasePrice?.toLocaleString() || '?'})
+          </button>
+          <button class="btn btn-secondary card-choice-btn" data-choice="skip">
+            ⏭️ Skip / Pass (Auction)
+          </button>
+        </div>
+      `;
+      modalBody.appendChild(choiceContainer);
+      modalBody.querySelectorAll('.card-choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (state.turnState?.hasAppliedCard) { closeModal(); return; }
+          dispatch({ type: 'APPLY_CARD_EFFECT', card, context: {} });
+          closeModal();
+          if (btn.dataset.choice === 'buy' && nearestProp) {
+            setTimeout(() => {
+              if (player.balance >= nearestProp.purchasePrice) {
+                dispatch({ type: 'BUY_PROPERTY', playerId: player.id, propertyId: nearestProp.id });
+                showToast(`${player.name} bought ${nearestProp.name}!`, 'success');
+              } else {
+                showToast(`Can't afford ${nearestProp.name}. Sending to auction.`, 'warning');
+                if (state.settings.rules.auctionUnowned) showAuctionModal(nearestProp.id);
+              }
+            }, 310);
+          } else if (state.settings.rules.auctionUnowned && nearestProp) {
+            setTimeout(() => showAuctionModal(nearestProp.id), 310);
+          }
+        });
+      });
+    } else {
+      // Owned by another player — pay rent (doubled for railroads, 10× for utilities)
+      let rentInfo = '';
+      let rentAmount = 0;
+      if (targetType === 'railroad') {
+        rentAmount = calculateRent(nearestProp.id, state.propertyStates, 0, { doubleRent: true });
+        rentInfo = `<span class="card-rent-info">Double rent: <strong>$${rentAmount.toLocaleString()}</strong></span>`;
+      }
+
+      choiceContainer.innerHTML = `
+        ${propLabel}
+        <div class="card-choice-label">Pay ${targetType === 'railroad' ? 'DOUBLE' : '10× dice'} rent to ${owner?.name || '?'}</div>
+        ${targetType === 'utility' ? `
+          <div class="card-utility-dice">
+            <label>Dice roll total:</label>
+            <input type="number" id="card-dice-input" class="dice-input" min="2" max="12" value="7" style="width:70px;margin-left:8px" />
+            <span id="card-rent-preview" class="card-rent-preview">Rent: $${7 * 10}</span>
+          </div>
+        ` : rentInfo}
+        <button class="btn btn-warning btn-lg" id="card-pay-rent-btn">
+          💸 Pay Rent to ${owner?.name || '?'}
+        </button>
+      `;
+      modalBody.appendChild(choiceContainer);
+
+      const diceInput = document.getElementById('card-dice-input');
+      if (diceInput) {
+        diceInput.addEventListener('input', () => {
+          const dice = parseInt(diceInput.value) || 7;
+          const preview = document.getElementById('card-rent-preview');
+          if (preview) preview.textContent = `Rent: $${(dice * 10).toLocaleString()}`;
+        });
+      }
+
+      document.getElementById('card-pay-rent-btn').addEventListener('click', () => {
+        if (state.turnState?.hasAppliedCard) { closeModal(); return; }
+        let finalRent = rentAmount;
+        if (targetType === 'utility') {
+          const dice = parseInt(document.getElementById('card-dice-input')?.value) || 7;
+          finalRent = dice * 10;
+        }
+        dispatch({
+          type: 'APPLY_CARD_EFFECT',
+          card,
+          context: { rentAmount: finalRent, ownerId: propState.ownerId }
+        });
+        closeModal();
+        showToast(`Paid $${finalRent.toLocaleString()} rent to ${owner?.name}.`, 'info');
+      });
     }
-    closeModal();
-  });
+  }
 }
 
 // ═══════════════════════════════════════
@@ -1209,7 +1480,7 @@ function showBuildModal(player) {
       </div>
       <div class="property-select-list">
         ${buildable.map(p => {
-    const houseCheck = canBuildHouse(p.id, player.id, state.propertyStates, state.bank, state.settings.rules);
+    const houseCheck = canBuildHouse(p.id, player.id, state.propertyStates, state.bank);
     const hotelCheck = canBuildHotel(p.id, player.id, state.propertyStates, state.bank);
     const group = COLOR_GROUPS[p.data.colorGroup];
     const canAffordHouse = houseCheck.allowed && player.balance >= houseCheck.cost;
@@ -1480,7 +1751,7 @@ function showIncomeTaxModal(player) {
 }
 
 // ═══════════════════════════════════════
-// MODALS — BANKRUPTCY
+// MODALS — BANKRUPTCY (Quit Game)
 // ═══════════════════════════════════════
 
 function showBankruptcyModal(player) {
@@ -1520,7 +1791,49 @@ function showBankruptcyModal(player) {
 }
 
 // ═══════════════════════════════════════
-// MODALS — TRADE  (Bug Fix #1)
+// AUTO-BANKRUPTCY MODAL
+// ═══════════════════════════════════════
+
+function showAutoBankruptcyModal(player) {
+  const others = state.players.filter(p => p.id !== player.id && !p.isBankrupt);
+  const liquidation = calculateLiquidationValue(player, state.propertyStates);
+
+  const content = `
+    <div class="bankruptcy-modal">
+      <div class="bankruptcy-warning">
+        <span class="warning-icon">💀</span>
+        <h3>${player.name} is Bankrupt!</h3>
+        <p>Balance: <strong style="color:var(--c-danger)">$${player.balance.toLocaleString()}</strong></p>
+        <p>Even after selling everything, total value is <strong>$${liquidation.toLocaleString()}</strong> — cannot continue.</p>
+      </div>
+      <p class="modal-instruction">Transfer assets to creditor:</p>
+      <div class="bankruptcy-options">
+        <button class="btn btn-warning btn-lg" id="auto-bankrupt-bank">🏦 Assets go to Bank</button>
+        ${others.map(p => `
+          <button class="btn btn-secondary btn-lg auto-bankrupt-player" data-creditor-id="${p.id}">
+            ${TOKENS.find(t => t.id === p.token)?.emoji || ''} Assets to ${p.name}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  const closeModal = showModal('💀 Bankruptcy', content, null, true);
+
+  document.getElementById('auto-bankrupt-bank')?.addEventListener('click', () => {
+    dispatch({ type: 'DECLARE_BANKRUPTCY', playerId: player.id, creditorId: null });
+    closeModal();
+  });
+  document.querySelectorAll('.auto-bankrupt-player').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dispatch({ type: 'DECLARE_BANKRUPTCY', playerId: player.id, creditorId: btn.dataset.creditorId });
+      closeModal();
+    });
+  });
+}
+
+// ═══════════════════════════════════════
+// MODALS — TRADE  (with net totals)
 // ═══════════════════════════════════════
 
 function showTradeModal(player) {
@@ -1544,17 +1857,24 @@ function showTradeModal(player) {
     </div>
   `;
 
-  // ── BUG FIX: use closeModalThen so the 300ms timeout doesn't erase showTradeBuilder ──
   showModal('🤝 Trade', content);
 
   document.querySelectorAll('.trade-partner-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const partnerId = btn.dataset.partnerId;
       const partner = state.players.find(p => p.id === partnerId);
-      // Close current modal cleanly, then open trade builder after animation completes
       closeModalThen(() => showTradeBuilder(player, partner));
     });
   });
+}
+
+function calcTradeNetValue(cashAmount, selectedPropIds) {
+  let propValue = 0;
+  selectedPropIds.forEach(id => {
+    const propData = PROPERTIES.find(p => p.id === id);
+    if (propData) propValue += propData.purchasePrice;
+  });
+  return cashAmount + propValue;
 }
 
 function showTradeBuilder(player1, player2) {
@@ -1578,9 +1898,10 @@ function showTradeBuilder(player1, player2) {
           <div class="trade-props" id="trade-props-1">
             ${p1Props.map(p => `
               <label class="trade-prop-check">
-                <input type="checkbox" value="${p.id}" class="trade-prop-1" />
+                <input type="checkbox" value="${p.id}" class="trade-prop-1" data-price="${p.purchasePrice}" />
                 <span class="prop-select-color" style="background:${COLOR_GROUPS[p.colorGroup]?.hex || '#999'};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
                 ${p.name}${state.propertyStates[p.id].isMortgaged ? ' (M)' : ''}
+                <span class="trade-prop-price">$${p.purchasePrice.toLocaleString()}</span>
               </label>
             `).join('')}
             ${p1Props.length === 0 ? '<p class="trade-empty">No properties</p>' : ''}
@@ -1590,6 +1911,10 @@ function showTradeBuilder(player1, player2) {
               <input type="checkbox" id="trade-goojf-1" /> 🎫 GOOJF Card
             </label>
           ` : ''}
+          <div class="trade-net-total" id="trade-net-1">
+            <span class="trade-net-label">You give:</span>
+            <span class="trade-net-value" id="trade-net-val-1">$0</span>
+          </div>
         </div>
 
         <div class="trade-divider"><span class="trade-arrow">⟷</span></div>
@@ -1606,9 +1931,10 @@ function showTradeBuilder(player1, player2) {
           <div class="trade-props" id="trade-props-2">
             ${p2Props.map(p => `
               <label class="trade-prop-check">
-                <input type="checkbox" value="${p.id}" class="trade-prop-2" />
+                <input type="checkbox" value="${p.id}" class="trade-prop-2" data-price="${p.purchasePrice}" />
                 <span class="prop-select-color" style="background:${COLOR_GROUPS[p.colorGroup]?.hex || '#999'};width:10px;height:10px;border-radius:50%;display:inline-block"></span>
                 ${p.name}${state.propertyStates[p.id].isMortgaged ? ' (M)' : ''}
+                <span class="trade-prop-price">$${p.purchasePrice.toLocaleString()}</span>
               </label>
             `).join('')}
             ${p2Props.length === 0 ? '<p class="trade-empty">No properties</p>' : ''}
@@ -1618,6 +1944,10 @@ function showTradeBuilder(player1, player2) {
               <input type="checkbox" id="trade-goojf-2" /> 🎫 GOOJF Card
             </label>
           ` : ''}
+          <div class="trade-net-total" id="trade-net-2">
+            <span class="trade-net-label">You give:</span>
+            <span class="trade-net-value" id="trade-net-val-2">$0</span>
+          </div>
         </div>
       </div>
 
@@ -1628,6 +1958,27 @@ function showTradeBuilder(player1, player2) {
   `;
 
   const closeModal = showModal('🤝 Trade Builder', content);
+
+  // Live net total update
+  function updateTradeTotals() {
+    const cash1 = parseInt(document.getElementById('trade-cash-1')?.value) || 0;
+    const cash2 = parseInt(document.getElementById('trade-cash-2')?.value) || 0;
+    const props1Val = [...document.querySelectorAll('.trade-prop-1:checked')].reduce((s, c) => s + parseInt(c.dataset.price || 0), 0);
+    const props2Val = [...document.querySelectorAll('.trade-prop-2:checked')].reduce((s, c) => s + parseInt(c.dataset.price || 0), 0);
+    const total1 = cash1 + props1Val;
+    const total2 = cash2 + props2Val;
+    const el1 = document.getElementById('trade-net-val-1');
+    const el2 = document.getElementById('trade-net-val-2');
+    if (el1) el1.textContent = `$${total1.toLocaleString()} (cash $${cash1.toLocaleString()} + props $${props1Val.toLocaleString()})`;
+    if (el2) el2.textContent = `$${total2.toLocaleString()} (cash $${cash2.toLocaleString()} + props $${props2Val.toLocaleString()})`;
+  }
+
+  // Bind all inputs for live updates
+  setTimeout(() => {
+    document.getElementById('trade-cash-1')?.addEventListener('input', updateTradeTotals);
+    document.getElementById('trade-cash-2')?.addEventListener('input', updateTradeTotals);
+    document.querySelectorAll('.trade-prop-1, .trade-prop-2').forEach(cb => cb.addEventListener('change', updateTradeTotals));
+  }, 50);
 
   document.getElementById('trade-execute').addEventListener('click', () => {
     const cash1 = parseInt(document.getElementById('trade-cash-1').value) || 0;

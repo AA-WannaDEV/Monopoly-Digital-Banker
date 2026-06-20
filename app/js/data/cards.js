@@ -13,31 +13,61 @@ export const CHANCE_CARDS = [
     id: 'C2', deck: 'chance',
     text: 'Advance to Illinois Avenue. If you pass Go, collect $200.',
     effectType: 'advanceTo',
-    effectPayload: { position: 25, collectGoSalary: true }
+    effectPayload: { position: 25, collectGoSalary: true },
+    requiresChoice: true,
+    choiceType: 'passedGo',
+    choiceOptions: [
+      { label: '✅ Yes, I passed Go (+$200)', passedGo: true },
+      { label: '❌ No, I did not pass Go', passedGo: false }
+    ]
   },
   {
     id: 'C3', deck: 'chance',
     text: 'Advance to St. Charles Place. If you pass Go, collect $200.',
     effectType: 'advanceTo',
-    effectPayload: { position: 12, collectGoSalary: true }
+    effectPayload: { position: 12, collectGoSalary: true },
+    requiresChoice: true,
+    choiceType: 'passedGo',
+    choiceOptions: [
+      { label: '✅ Yes, I passed Go (+$200)', passedGo: true },
+      { label: '❌ No, I did not pass Go', passedGo: false }
+    ]
   },
   {
     id: 'C4', deck: 'chance',
     text: 'Advance token to nearest Railroad. If unowned, you may buy it from the Bank. If owned, pay owner twice the rental to which they are otherwise entitled.',
     effectType: 'advanceToNearest',
-    effectPayload: { targetType: 'railroad', doubleRent: true }
+    effectPayload: { targetType: 'railroad', doubleRent: true },
+    requiresChoice: true,
+    choiceType: 'nearestProperty',
+    choiceOptions: [
+      { label: '🏦 It is Unowned — Buy from Bank', outcome: 'unowned' },
+      { label: '💸 It is Owned — Pay Double Rent', outcome: 'owned' }
+    ]
   },
   {
     id: 'C5', deck: 'chance',
     text: 'Advance token to nearest Railroad. If unowned, you may buy it from the Bank. If owned, pay owner twice the rental to which they are otherwise entitled.',
     effectType: 'advanceToNearest',
-    effectPayload: { targetType: 'railroad', doubleRent: true }
+    effectPayload: { targetType: 'railroad', doubleRent: true },
+    requiresChoice: true,
+    choiceType: 'nearestProperty',
+    choiceOptions: [
+      { label: '🏦 It is Unowned — Buy from Bank', outcome: 'unowned' },
+      { label: '💸 It is Owned — Pay Double Rent', outcome: 'owned' }
+    ]
   },
   {
     id: 'C6', deck: 'chance',
     text: 'Advance token to nearest Utility. If unowned, you may buy it from the Bank. If owned, throw dice and pay owner 10 times the amount thrown.',
     effectType: 'advanceToNearest',
-    effectPayload: { targetType: 'utility', multiplier: 10 }
+    effectPayload: { targetType: 'utility', multiplier: 10 },
+    requiresChoice: true,
+    choiceType: 'nearestProperty',
+    choiceOptions: [
+      { label: '🏦 It is Unowned — Buy from Bank', outcome: 'unowned' },
+      { label: '🎲 It is Owned — Roll Dice & Pay 10×', outcome: 'owned' }
+    ]
   },
   {
     id: 'C7', deck: 'chance',
@@ -79,13 +109,25 @@ export const CHANCE_CARDS = [
     id: 'C13', deck: 'chance',
     text: 'Take a trip to Reading Railroad. If you pass Go, collect $200.',
     effectType: 'advanceTo',
-    effectPayload: { position: 6, collectGoSalary: true }
+    effectPayload: { position: 6, collectGoSalary: true },
+    requiresChoice: true,
+    choiceType: 'passedGo',
+    choiceOptions: [
+      { label: '✅ Yes, I passed Go (+$200)', passedGo: true },
+      { label: '❌ No, I did not pass Go', passedGo: false }
+    ]
   },
   {
     id: 'C14', deck: 'chance',
     text: 'Take a walk on the Boardwalk. Advance token to Boardwalk.',
     effectType: 'advanceTo',
-    effectPayload: { position: 40, collectGoSalary: true }
+    effectPayload: { position: 40, collectGoSalary: true },
+    requiresChoice: true,
+    choiceType: 'passedGo',
+    choiceOptions: [
+      { label: '✅ Yes, I passed Go (+$200)', passedGo: true },
+      { label: '❌ No, I did not pass Go', passedGo: false }
+    ]
   },
   {
     id: 'C15', deck: 'chance',

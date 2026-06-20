@@ -1,0 +1,15 @@
+Another AI worked on the same prompt and left an incomplete response which's snippets are located at "D:\Users\Asad Ahmed\Desktop\Monopoly Digital Banker\Snippets by AI to continue from (Temporary". Delete this folder after you are done with the whole prompt as the folder is there just for you aid.
+
+PROMPT:
+Most Priority BUGS:
+- When a person is jail there is no option to get out of jail if you have rolled doubles.
+- There should be a button added available on a person's turn which should be "Extra turn" that should be clicked when a person rolls doubles. That button when clicked should reset the one property bought per turn rule count to 0, same goes with the community and chance cards once per turn.
+- For chance and community chest cards, for the cards requiring options that if thing a has happened do this and if not then do this, I want all cards to be studied and an option button should be created if any option on that card so the user can see then click either button that has the option true. This should only be done on cards requiring the player to see options or in most cases, the player's position on the board. An example of a card that shows what I am talking about: "Advance token to nearest Railroad. If unowned, you may buy it from the Bank. If owned, pay owner twice the rental to which they are otherwise entitled". For example of options: The shown example card should have 2 options instead of the apply effect button: "Nearest Railroad? (Then an option to choose the nearest railroad and then the code should check if the selected railroad is owned or not and if owned then the rent of that railroad being applied should be doubled then transferred to the owner from the player who got the card's balance).
+- The effects of Community and Chance Cards should only be able to done once per turn. And on each turn the community chest says the exact same thing the chance card does, this should be fixed aswell. This bug also makes players able to continuously repeat getting card effects by pressing the apply effect button again and again.
+Least Priority BUGS:
+- Before starting the game add the option to also choose whether you want a digital dice if not having a physical dice. The dice SHOULD have great and by that I mean GREAT little subtle cartoonish animation and the dice should complement the web app's colour palette.
+- Option to return to the homepage after exiting it to go to the game setup webpage.
+- After starting a game the webpage of the main game processes is shown scrolled to the bottom by default, it should be scrolled to the top by default.
+- the end turn and declare bankruptcy button should be separately under all the action card buttons as they require separate representation.
+- Their should be a system to detect bankruptcy rather than a button to declare bankruptcy. The button should rather work like a quit game button if the player needs to quit the game unconditionally
+- An extra feature should be added for when trading it should show the net total on both sides of the added things  on both sides separate.

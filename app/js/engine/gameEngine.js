@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════
-// GAME ENGINE — State Management Core v3.0
+// GAME ENGINE — State Management Core v4.0
 // ═══════════════════════════════════════
 
 import { PROPERTIES, COLOR_GROUPS, RAILROAD_RENT, RAILROAD_POSITIONS, UTILITY_POSITIONS } from '../data/properties.js';
@@ -30,6 +30,18 @@ function createPropertyStates() {
   return states;
 }
 
+function freshTurnState() {
+  return {
+    hasPassedGo: false,
+    hasPaidTax: false,
+    hasBoughtProperty: false,
+    hasDrawnCard: false,
+    hasAppliedCard: false,
+    hasRolled: false,
+    doublesCount: 0,
+  };
+}
+
 export function createInitialState() {
   return {
     phase: 'splash',
@@ -47,14 +59,7 @@ export function createInitialState() {
     players: [],
     activePlayerIndex: 0,
     turnNumber: 1,
-    turnState: {
-      hasPassedGo: false,
-      hasPaidTax: false,
-      hasBoughtProperty: false,
-      hasDrawnCard: false,
-      hasRolled: false,
-      doublesCount: 0,
-    },
+    turnState: freshTurnState(),
     diceState: { die1: 1, die2: 1, rolling: false, isDoubles: false, totalRolls: 0 },
     propertyStates: createPropertyStates(),
     chanceDeck: shuffleArray([...CHANCE_CARDS]),
@@ -121,7 +126,6 @@ export function calculateRent(propertyId, propertyStates, diceTotal, chanceCardO
   if (propData.type === 'property') {
     if (propState.hasHotel) return propData.rent.hotel;
     if (propState.houses > 0) return propData.rent[`h${propState.houses}`] || 0;
-    // Check monopoly (all in group owned, no buildings) → double base rent
     const groupProps = PROPERTIES.filter(p => p.colorGroup === propData.colorGroup);
     const allOwned = groupProps.every(p => propertyStates[p.id]?.ownerId === ownerId);
     return allOwned ? propData.rent.base * 2 : propData.rent.base;
@@ -147,6 +151,25 @@ export function calculateNetWorth(player, propertyStates) {
     }
   });
   return nw;
+}
+
+// ═══════════════════════════════════════
+// LIQUIDATION VALUE (for bankruptcy detection)
+// ═══════════════════════════════════════
+export function calculateLiquidationValue(player, propertyStates) {
+  let total = player.balance;
+  player.ownedPropertyIds.forEach(propId => {
+    const propData = PROPERTIES.find(p => p.id === propId);
+    const propState = propertyStates[propId];
+    if (!propData || !propState) return;
+    if (!propState.isMortgaged) total += propData.mortgageValue;
+    if (propData.type === 'property') {
+      const bc = COLOR_GROUPS[propData.colorGroup]?.buildCost || 0;
+      total += propState.houses * Math.floor(bc / 2);
+      if (propState.hasHotel) total += Math.floor(bc / 2);
+    }
+  });
+  return total;
 }
 
 // ═══════════════════════════════════════
@@ -273,7 +296,8 @@ export function gameReducer(state, action) {
       s.chanceDiscardPile = [];
       s.communityChestDeck = shuffleArray([...COMMUNITY_CHEST_CARDS]);
       s.communityChestDiscardPile = [];
-      s.turnState = { hasPassedGo: false, hasPaidTax: false, hasBoughtProperty: false, hasDrawnCard: false, hasRolled: false, doublesCount: 0 };
+      s.turnState = freshTurnState();
+      s.diceState = { die1: 1, die2: 1, rolling: false, isDoubles: false, totalRolls: 0 };
       addLog('system', '🎲 Game started!');
       s.players.forEach(p => addLog('system', `${p.name} starts with $${p.balance.toLocaleString()}`));
       return s;
@@ -283,58 +307,93 @@ export function gameReducer(state, action) {
       const die1 = Math.floor(Math.random() * 6) + 1;
       const die2 = Math.floor(Math.random() * 6) + 1;
       const isDoubles = die1 === die2;
+      const ap = getActivePlayer();
+
+      if (!s.turnState) s.turnState = freshTurnState();
+
+      // If player is in jail
+      if (ap && ap.isInJail) {
+        s.diceState = { die1, die2, rolling: false, isDoubles, totalRolls: (s.diceState.totalRolls || 0) + 1 };
+        s.turnState.hasRolled = true;
+        if (isDoubles) {
+          // Rolling doubles in jail = get out free, no fine, does NOT get another turn
+          ap.isInJail = false;
+          ap.jailTurnsSpent = 0;
+          s.turnState.doublesCount = 0; // No bonus roll after jail doubles release
+          s.turnState.releasedFromJailByDoubles = true;
+          addLog('jail', `🎲 ${ap.name} rolled ${die1}+${die2} (Doubles!) — Released from Jail! Move ${die1 + die2} spaces.`);
+        } else {
+          ap.jailTurnsSpent = (ap.jailTurnsSpent || 0) + 1;
+          if (ap.jailTurnsSpent >= 3) {
+            // 3rd failed attempt — must pay fine automatically and move
+            ap.balance -= 50;
+            ap.isInJail = false;
+            ap.jailTurnsSpent = 0;
+            if (s.settings.rules.freeParkingJackpot) s.freeParkingPool += 50;
+            addLog('jail', `💸 ${ap.name} failed 3rd jail roll — paid $50 fine and is released! Rolled ${die1 + die2}.`);
+          } else {
+            addLog('jail', `🔒 ${ap.name} rolled ${die1}+${die2} — No doubles. Still in jail. (Attempt ${ap.jailTurnsSpent}/3)`);
+          }
+        }
+        return s;
+      }
+
+      // Normal (not in jail) roll
       const newDoublesCount = isDoubles ? (s.turnState.doublesCount + 1) : 0;
       s.diceState = { die1, die2, rolling: false, isDoubles, totalRolls: (s.diceState.totalRolls || 0) + 1 };
-      if (!s.turnState) s.turnState = {};
       s.turnState.hasRolled = true;
       s.turnState.doublesCount = newDoublesCount;
 
       if (isDoubles && newDoublesCount >= 3) {
-        const p = getActivePlayer();
-        if (p) {
-          p.isInJail = true;
-          p.jailTurnsSpent = 0;
-          p.boardPosition = 11;
-          addLog('jail', `🔒 ${p.name} rolled doubles 3 times — Go to Jail!`);
+        // Three doubles in a row → go to jail
+        if (ap) {
+          ap.isInJail = true;
+          ap.jailTurnsSpent = 0;
+          ap.boardPosition = 11;
+          addLog('jail', `🔒 ${ap.name} rolled doubles 3 times — Go to Jail!`);
           s.turnState.doublesCount = 0;
           s.turnState.hasRolled = false;
         }
-      } else {
-        const p = getActivePlayer();
-        if (p) addLog('system', `🎲 ${p.name} rolled ${die1}+${die2}=${die1+die2}${isDoubles ? ' (Doubles! Roll again)' : ''}`);
+      } else if (ap) {
+        addLog('system', `🎲 ${ap.name} rolled ${die1}+${die2}=${die1 + die2}${isDoubles ? ' (Doubles! 🎉)' : ''}`);
       }
+      return s;
+    }
+
+    // ── RESET TURN STATE FOR DOUBLES EXTRA ROLL ──
+    case 'RESET_DOUBLES_TURN': {
+      // Keep doublesCount but reset all per-turn action flags
+      const prevDoubles = s.turnState?.doublesCount || 0;
+      s.turnState = freshTurnState();
+      s.turnState.doublesCount = prevDoubles;
+      s._drawnCard = null;
+      const ap = getActivePlayer();
+      if (ap) addLog('system', `🎲 ${ap.name} takes their extra turn for doubles!`);
       return s;
     }
 
     case 'END_TURN': {
       const activePlayers = getActivePlayers();
       if (activePlayers.length <= 1) { s.phase = 'finished'; return s; }
-      // Only advance turn if not doubles (or jail was triggered)
-      const wasDoubles = s.turnState?.doublesCount > 0;
-      if (wasDoubles && !getActivePlayer()?.isInJail) {
-        // Let player roll again - just reset within-turn flags but not doublesCount
-        s.turnState = { ...s.turnState, hasPassedGo: false, hasPaidTax: false, hasBoughtProperty: false, hasDrawnCard: false, hasRolled: false };
-        addLog('system', `🎲 Doubles! ${getActivePlayer()?.name} rolls again.`);
-        return s;
-      }
       let nextIdx = (s.activePlayerIndex + 1) % s.players.length;
       while (s.players[nextIdx].isBankrupt) nextIdx = (nextIdx + 1) % s.players.length;
       s.activePlayerIndex = nextIdx;
       s.turnNumber++;
-      s.turnState = { hasPassedGo: false, hasPaidTax: false, hasBoughtProperty: false, hasDrawnCard: false, hasRolled: false, doublesCount: 0 };
+      s.turnState = freshTurnState();
+      s._drawnCard = null;
       addLog('system', `── Turn ${s.turnNumber}: ${s.players[nextIdx].name}'s turn ──`);
       return s;
     }
 
     case 'FORCE_END_TURN': {
-      // Force end turn without doubles check (after jail etc.)
       const activePlayers2 = getActivePlayers();
       if (activePlayers2.length <= 1) { s.phase = 'finished'; return s; }
       let nextIdx = (s.activePlayerIndex + 1) % s.players.length;
       while (s.players[nextIdx].isBankrupt) nextIdx = (nextIdx + 1) % s.players.length;
       s.activePlayerIndex = nextIdx;
       s.turnNumber++;
-      s.turnState = { hasPassedGo: false, hasPaidTax: false, hasBoughtProperty: false, hasDrawnCard: false, hasRolled: false, doublesCount: 0 };
+      s.turnState = freshTurnState();
+      s._drawnCard = null;
       addLog('system', `── Turn ${s.turnNumber}: ${s.players[nextIdx].name}'s turn ──`);
       return s;
     }
@@ -354,7 +413,7 @@ export function gameReducer(state, action) {
           s.freeParkingPool += action.amount;
         }
         if (/Tax/.test(action.reason)) {
-          if (!s.turnState) s.turnState = {};
+          if (!s.turnState) s.turnState = freshTurnState();
           s.turnState.hasPaidTax = true;
         }
       }
@@ -380,7 +439,7 @@ export function gameReducer(state, action) {
         p.balance -= propData.purchasePrice;
         p.ownedPropertyIds.push(action.propertyId);
         s.propertyStates[action.propertyId].ownerId = p.id;
-        if (!s.turnState) s.turnState = {};
+        if (!s.turnState) s.turnState = freshTurnState();
         s.turnState.hasBoughtProperty = true;
         addLog('property', `🏠 ${p.name} bought ${propData.name} for $${propData.purchasePrice.toLocaleString()}`);
       }
@@ -485,6 +544,7 @@ export function gameReducer(state, action) {
     }
 
     case 'DRAW_CARD': {
+      // Strict once-per-turn guard
       if (s.turnState?.hasDrawnCard) return s;
       const deckKey = action.deck === 'chance' ? 'chanceDeck' : 'communityChestDeck';
       const discardKey = action.deck === 'chance' ? 'chanceDiscardPile' : 'communityChestDiscardPile';
@@ -495,8 +555,9 @@ export function gameReducer(state, action) {
       const card = s[deckKey].shift();
       if (card && card.effectType !== 'getOutOfJailFree') s[discardKey].push(card);
       s._drawnCard = card;
-      if (!s.turnState) s.turnState = {};
+      if (!s.turnState) s.turnState = freshTurnState();
       s.turnState.hasDrawnCard = true;
+      s.turnState.hasAppliedCard = false;
       const ap = getActivePlayer();
       if (ap && card) {
         ap.cardHistory = ap.cardHistory || [];
@@ -506,7 +567,20 @@ export function gameReducer(state, action) {
       return s;
     }
 
+    // ── Mark card effect as applied (once-per-turn guard) ──
+    case 'MARK_CARD_APPLIED': {
+      if (!s.turnState) s.turnState = freshTurnState();
+      s.turnState.hasAppliedCard = true;
+      s._drawnCard = null;
+      return s;
+    }
+
     case 'APPLY_CARD_EFFECT': {
+      // Guard: only apply once per draw
+      if (s.turnState?.hasAppliedCard) return s;
+      if (!s.turnState) s.turnState = freshTurnState();
+      s.turnState.hasAppliedCard = true;
+
       const card = action.card;
       const player = getActivePlayer();
       const context = action.context || {};
@@ -523,20 +597,21 @@ export function gameReducer(state, action) {
           break;
         case 'advanceTo': {
           const dest = card.effectPayload.position;
-          const passedGo = context.passedGo || (dest < player.boardPosition && dest !== player.boardPosition);
+          const passedGo = context.passedGo;
           if (passedGo && card.effectPayload.collectGoSalary) {
             const salary = s.settings.rules.doubleSalaryOnGo && dest === 1 ? 400 : 200;
             player.balance += salary;
             addLog('transaction', `💰 ${player.name} passed Go, collected $${salary}`);
           }
           player.boardPosition = dest;
+          addLog('system', `🚶 ${player.name} moved to position ${dest}`);
           break;
         }
         case 'goToJail':
           player.isInJail = true;
           player.jailTurnsSpent = 0;
           player.boardPosition = 11;
-          if (!s.turnState) s.turnState = {};
+          if (!s.turnState) s.turnState = freshTurnState();
           s.turnState.doublesCount = 0;
           addLog('jail', `🔒 ${player.name} sent to Jail!`);
           break;
@@ -582,7 +657,7 @@ export function gameReducer(state, action) {
           const passedGo2 = nearest < player.boardPosition;
           if (passedGo2) { player.balance += 200; addLog('transaction', `💰 ${player.name} passed Go, collected $200`); }
           player.boardPosition = nearest;
-          // Rent is handled separately in the UI for these cards
+          // Rent handled in UI via context
           if (context.rentAmount && context.ownerId && context.ownerId !== player.id) {
             const owner = getPlayer(context.ownerId);
             if (owner) {
@@ -594,6 +669,7 @@ export function gameReducer(state, action) {
           break;
         }
       }
+      s._drawnCard = null;
       return s;
     }
 
@@ -639,7 +715,7 @@ export function gameReducer(state, action) {
       if (s.turnState?.hasPassedGo) return s;
       const p = getPlayer(action.playerId);
       if (p) {
-        if (!s.turnState) s.turnState = {};
+        if (!s.turnState) s.turnState = freshTurnState();
         s.turnState.hasPassedGo = true;
         const amount = s.settings.rules.doubleSalaryOnGo && action.exactLanding ? 400 : 200;
         p.balance += amount;
