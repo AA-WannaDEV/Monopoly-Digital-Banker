@@ -259,6 +259,7 @@ input[type="checkbox"] { width:18px; height:18px; accent-color:var(--c-primary);
 .doubles-banner-text { flex:1; font-weight:600; color:var(--c-base); font-size:var(--text-body); }
 [data-theme="dark"] .doubles-banner-text { color:var(--c-accent); }
 .doubles-extra-turn-btn { margin-left:12px; animation:pulseGold 1.5s infinite; }
+@keyframes pulseGold { 0%,100%{box-shadow:var(--shadow-gold)} 50%{box-shadow:0 0 0 5px rgba(212,175,55,0.45),0 0 28px rgba(212,175,55,0.75)} }
 
 .terminal-actions { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; border-top:2px solid var(--c-border); padding-top:16px; }
 .action-end { background:var(--c-base)!important; color:#fff!important; border-color:var(--c-base)!important; flex:1; flex-direction:row!important; min-height:52px!important; font-size:16px!important; }
@@ -470,6 +471,41 @@ input[type="checkbox"] { width:18px; height:18px; accent-color:var(--c-primary);
 .dice-fail { color:var(--c-primary); }
 
 /* ═══════════════════════════════════════
+   PHYSICAL DICE JAIL ROLL MODAL
+   ═══════════════════════════════════════ */
+.phys-jail-modal { display:flex; flex-direction:column; align-items:stretch; gap:14px; }
+.phys-dice-row {
+  display:flex; align-items:center; justify-content:center; gap:24px;
+  background:var(--c-bg); border:2px dashed var(--c-border);
+  border-radius:var(--radius-md); padding:20px 16px;
+}
+.phys-die-input-group { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.phys-die-icon { font-size:30px; line-height:1; }
+.phys-die-input-group label { font-size:10px; text-transform:uppercase; color:#888; font-weight:700; letter-spacing:1px; }
+.die-number-input {
+  width:68px; text-align:center; font-size:26px; font-weight:bold;
+  padding:8px 4px; border-radius:var(--radius-md);
+  border:2px solid var(--c-border); background:var(--c-card-bg); color:var(--c-base);
+  transition:border-color var(--t-fast),box-shadow var(--t-fast);
+  -moz-appearance:textfield;
+}
+.die-number-input::-webkit-inner-spin-button,.die-number-input::-webkit-outer-spin-button { opacity:1; height:28px; }
+[data-theme="dark"] .die-number-input { color:var(--c-accent); background:var(--c-base); }
+.die-number-input:focus { border-color:var(--c-accent); box-shadow:0 0 0 3px rgba(212,175,55,0.25); outline:none; }
+.phys-dice-total-preview { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.phys-total-num { font-family:monospace; font-size:44px; font-weight:bold; color:var(--c-base); line-height:1; }
+[data-theme="dark"] .phys-total-num { color:var(--c-accent); }
+.phys-total-label { font-size:10px; text-transform:uppercase; color:#888; font-weight:600; letter-spacing:1px; }
+.phys-doubles-result {
+  text-align:center; padding:10px 14px; border-radius:var(--radius-md);
+  font-weight:600; font-size:var(--text-sm); transition:all 0.25s ease;
+  border:2px solid transparent;
+}
+.phys-doubles-yes   { background:rgba(46,125,50,0.12); color:var(--c-success); border-color:var(--c-success); }
+.phys-doubles-no    { background:rgba(229,57,53,0.08); color:var(--c-primary); border-color:rgba(229,57,53,0.35); }
+.phys-doubles-third { background:rgba(245,124,0,0.12); color:#f57c00; border-color:#f57c00; }
+
+/* ═══════════════════════════════════════
    WIN SCREEN
    ═══════════════════════════════════════ */
 .win-screen { flex:1; display:flex; align-items:center; justify-content:center; background:var(--c-base); position:relative; overflow:hidden; min-height:100dvh; padding:20px; }
@@ -550,6 +586,32 @@ input[type="checkbox"] { width:18px; height:18px; accent-color:var(--c-primary);
   .balance-input-group { flex-wrap:wrap; }
   #toast-container { bottom:12px; right:8px; }
   .toast { max-width:calc(100vw - 20px); font-size:12px; padding:9px 14px; }
+  /* Physical dice modal on mobile */
+  .phys-dice-row { gap:14px; padding:14px 10px; }
+  .phys-total-num { font-size:32px; }
+  .die-number-input { width:56px; font-size:22px; padding:6px 2px; }
+  .phys-die-icon { font-size:22px; }
+  /* Doubles banner compact on mobile */
+  .doubles-banner { flex-wrap:wrap; gap:8px; padding:10px 12px; }
+  .doubles-banner-text { min-width:100%; text-align:center; font-size:12px; }
+  .doubles-extra-turn-btn { width:100%; margin-left:0; justify-content:center; }
+  /* Scroll snap player grid */
+  .player-grid { scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+  .player-card { scroll-snap-align:start; }
+  /* Larger tap targets for action buttons */
+  .action-btn { min-height:68px; font-size:12px; }
+  /* Jail release banner compact */
+  .jail-released-banner { font-size:12px; padding:8px 10px; line-height:1.4; }
+  /* Compact dice panel */
+  .dice-display { gap:10px; }
+  .die { width:44px; height:44px; }
+  .dice-roll-btn { font-size:14px; padding:9px 14px; max-width:180px; }
+  /* Terminal actions full-width row on mobile */
+  .action-end,.action-bankrupt { min-height:48px!important; }
+  /* Action header compact */
+  .action-header { gap:6px; padding-bottom:8px; margin-bottom:8px; }
+  /* Modal header compact */
+  .modal-header { padding:12px 14px; }
 }
 
 @media (max-width:400px) {

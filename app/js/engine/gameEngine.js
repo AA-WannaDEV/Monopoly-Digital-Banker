@@ -360,6 +360,37 @@ export function gameReducer(state, action) {
       return s;
     }
 
+    // ── MANUAL JAIL ROLL (Physical Dice) ──
+    case 'MANUAL_JAIL_ROLL': {
+      const die1 = Math.max(1, Math.min(6, action.die1 || 1));
+      const die2 = Math.max(1, Math.min(6, action.die2 || 1));
+      const isDoubles = die1 === die2;
+      const ap = getActivePlayer();
+      if (!ap || !ap.isInJail) return s;
+      if (!s.turnState) s.turnState = freshTurnState();
+      s.diceState = { die1, die2, rolling: false, isDoubles, totalRolls: (s.diceState.totalRolls || 0) + 1 };
+      s.turnState.hasRolled = true;
+      if (isDoubles) {
+        ap.isInJail = false;
+        ap.jailTurnsSpent = 0;
+        s.turnState.doublesCount = 0;
+        s.turnState.releasedFromJailByDoubles = true;
+        addLog('jail', `🎲 ${ap.name} rolled ${die1}+${die2} doubles (physical dice) — Released from Jail! Move ${die1 + die2} spaces.`);
+      } else {
+        ap.jailTurnsSpent = (ap.jailTurnsSpent || 0) + 1;
+        if (ap.jailTurnsSpent >= 3) {
+          ap.balance -= 50;
+          ap.isInJail = false;
+          ap.jailTurnsSpent = 0;
+          if (s.settings.rules.freeParkingJackpot) s.freeParkingPool += 50;
+          addLog('jail', `💸 ${ap.name} 3rd jail roll failed — paid $50 fine and released! Rolled ${die1 + die2}.`);
+        } else {
+          addLog('jail', `🔒 ${ap.name} rolled ${die1}+${die2} (no doubles). Still in jail (attempt ${ap.jailTurnsSpent}/3).`);
+        }
+      }
+      return s;
+    }
+
     // ── RESET TURN STATE FOR DOUBLES EXTRA ROLL ──
     case 'RESET_DOUBLES_TURN': {
       // Keep doublesCount but reset all per-turn action flags

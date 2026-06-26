@@ -695,8 +695,7 @@ function renderActionButtons(player) {
   const ts = state.turnState || {};
 
   if (player.isInJail) {
-    // If digital dice used and not yet rolled this turn, show roll-in-jail options
-    const needsRoll = state.settings.rules.useDigitalDice;
+    const usingDigitalDice = state.settings.rules.useDigitalDice;
     return `
       <button class="action-btn action-jail" data-action="payJailFine" ${player.balance < 50 ? 'disabled' : ''}>
         <span class="action-icon">💸</span> Pay $50 Fine
@@ -704,6 +703,13 @@ function renderActionButtons(player) {
       <button class="action-btn action-jail" data-action="useGoojf" ${!hasGoojf ? 'disabled' : ''}>
         <span class="action-icon">🎫</span> Use GOOJF Card
       </button>
+      ${!usingDigitalDice ? `
+        <button class="action-btn action-buy" data-action="rollPhysicalDiceInJail"
+          ${ts.hasRolled ? 'disabled title="Already rolled this turn"' : ''}
+          style="border-color:var(--c-accent)">
+          <span class="action-icon">🎲</span> Roll Dice
+        </button>
+      ` : ''}
       ${ts.hasRolled && ts.releasedFromJailByDoubles ? `
         <div class="jail-released-banner">
           🎉 Released by doubles! Move ${(state.diceState?.die1 || 0) + (state.diceState?.die2 || 0)} spaces then proceed.
@@ -1017,6 +1023,7 @@ function handleAction(action, player) {
     case 'endTurn': dispatch({ type: 'END_TURN' }); break;
     case 'bankruptcy': showBankruptcyModal(player); break;
     case 'sellHouse': showSellHouseModal(player); break;
+    case 'rollPhysicalDiceInJail': showPhysicalJailRollModal(player); break;
   }
 }
 
@@ -1704,6 +1711,98 @@ function showCollectSalaryModal(player) {
       showToast(`${player.name} collected $400 landing on Go!`, 'success');
     });
   }
+}
+
+// ═══════════════════════════════════════
+// MODALS — PHYSICAL DICE JAIL ROLL
+// ═══════════════════════════════════════
+
+function showPhysicalJailRollModal(player) {
+  if (state.turnState?.hasRolled) {
+    showToast('You already rolled this turn!', 'error');
+    return;
+  }
+
+  const attemptNum = Math.min((player.jailTurnsSpent || 0) + 1, 3);
+
+  const content = `
+    <div class="phys-jail-modal">
+      <p class="modal-instruction" style="text-align:center">
+        Enter your physical dice values to record your roll.
+      </p>
+      <p style="font-size:13px;color:#888;margin-bottom:4px;text-align:center">
+        🎯 Roll <strong>doubles</strong> to get out free!
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        Attempt <strong>${attemptNum}/3</strong>
+      </p>
+      <div class="phys-dice-row">
+        <div class="phys-die-input-group">
+          <div class="phys-die-icon">🎲</div>
+          <label>Die 1</label>
+          <input type="number" id="phys-die1" min="1" max="6" value="1" class="die-number-input" />
+        </div>
+        <div class="phys-dice-total-preview">
+          <div class="phys-total-num" id="phys-total-num">2</div>
+          <div class="phys-total-label">Total</div>
+        </div>
+        <div class="phys-die-input-group">
+          <div class="phys-die-icon">🎲</div>
+          <label>Die 2</label>
+          <input type="number" id="phys-die2" min="1" max="6" value="1" class="die-number-input" />
+        </div>
+      </div>
+      <div id="phys-doubles-result" class="phys-doubles-result phys-doubles-yes">
+        🎉 Doubles! You'll be released from jail!
+      </div>
+      <button class="btn btn-primary btn-lg" id="phys-confirm-btn" style="width:100%;margin-top:16px">
+        ✓ Confirm Roll
+      </button>
+    </div>
+  `;
+
+  showModal('🎲 Roll Dice — Jail', content);
+
+  function updatePreview() {
+    const d1 = Math.max(1, Math.min(6, parseInt(document.getElementById('phys-die1')?.value) || 1));
+    const d2 = Math.max(1, Math.min(6, parseInt(document.getElementById('phys-die2')?.value) || 1));
+    const resultDiv = document.getElementById('phys-doubles-result');
+    const totalNum = document.getElementById('phys-total-num');
+    if (totalNum) totalNum.textContent = d1 + d2;
+    if (resultDiv) {
+      if (d1 === d2) {
+        resultDiv.textContent = "🎉 Doubles! You'll be released from jail!";
+        resultDiv.className = 'phys-doubles-result phys-doubles-yes';
+      } else if (attemptNum >= 3) {
+        resultDiv.textContent = "⚠️ 3rd failed attempt — you'll pay $50 and be released!";
+        resultDiv.className = 'phys-doubles-result phys-doubles-third';
+      } else {
+        resultDiv.textContent = `🔒 No doubles — still in jail (attempt ${attemptNum}/3)`;
+        resultDiv.className = 'phys-doubles-result phys-doubles-no';
+      }
+    }
+  }
+
+  setTimeout(() => {
+    document.getElementById('phys-die1')?.addEventListener('input', updatePreview);
+    document.getElementById('phys-die2')?.addEventListener('input', updatePreview);
+
+    document.getElementById('phys-confirm-btn')?.addEventListener('click', () => {
+      const d1 = Math.max(1, Math.min(6, parseInt(document.getElementById('phys-die1')?.value) || 1));
+      const d2 = Math.max(1, Math.min(6, parseInt(document.getElementById('phys-die2')?.value) || 1));
+      const isDoubles = d1 === d2;
+      dispatch({ type: 'MANUAL_JAIL_ROLL', die1: d1, die2: d2 });
+      if (isDoubles) {
+        showToast(`🎉 Doubles (${d1}+${d2})! ${player.name} is free! Move ${d1 + d2} spaces.`, 'success');
+      } else {
+        const updatedPlayer = state.players.find(p => p.id === player.id);
+        if (updatedPlayer && !updatedPlayer.isInJail) {
+          showToast(`❌ 3rd attempt failed — ${player.name} paid $50 fine and is released!`, 'warning');
+        } else {
+          showToast(`🔒 No doubles (${d1}+${d2}). ${player.name} stays in jail.`, 'info');
+        }
+      }
+    });
+  }, 50);
 }
 
 // ═══════════════════════════════════════
